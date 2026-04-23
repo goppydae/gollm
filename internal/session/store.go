@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -228,16 +229,38 @@ func (s *store) list() ([]string, error) {
 		}
 		return nil, err
 	}
-	var ids []string
+
+	type entryInfo struct {
+		id    string
+		mtime time.Time
+	}
+	var infos []entryInfo
+
 	for _, e := range entries {
 		if !e.IsDir() && filepath.Ext(e.Name()) == ".jsonl" {
-			name := strings.TrimSuffix(e.Name(), ".jsonl")
-			// Extract UUID from {Timestamp}_{UUID}
-			if idx := strings.LastIndexByte(name, '_'); idx >= 0 {
-				name = name[idx+1:]
+			info, err := e.Info()
+			if err != nil {
+				continue
 			}
-			ids = append(ids, name)
+
+			// Use the full filename (minus .jsonl) as the ID for internal tracking.
+			// This ensures path() can find it via a direct file check.
+			name := strings.TrimSuffix(e.Name(), ".jsonl")
+			infos = append(infos, entryInfo{
+				id:    name,
+				mtime: info.ModTime(),
+			})
 		}
+	}
+
+	// Sort by modification time ascending so latest is last
+	sort.Slice(infos, func(i, j int) bool {
+		return infos[i].mtime.Before(infos[j].mtime)
+	})
+
+	var ids []string
+	for _, info := range infos {
+		ids = append(ids, info.id)
 	}
 	return ids, nil
 }

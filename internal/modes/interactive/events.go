@@ -17,6 +17,7 @@ func (m *model) handleAgentEvent(ev agent.Event) (tea.Model, tea.Cmd) {
 		m.isRunning = true
 		m.startTime = time.Now()
 		cmds = append(cmds, m.spinner.Tick)
+		cmds = append(cmds, m.stopwatch.Reset())
 		cmds = append(cmds, m.stopwatch.Start())
 		cmds = append(cmds, m.progressBar.SetPercent(0))
 

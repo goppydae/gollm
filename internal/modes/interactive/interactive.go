@@ -46,8 +46,16 @@ func Run(provider llm.Provider, registry *tools.ToolRegistry, mgr *session.Manag
 		case opts.PreloadSession == "continue":
 			list, lerr := mgr.List()
 			if lerr == nil && len(list) > 0 {
-				sess, err = mgr.Load(list[len(list)-1])
-			} else {
+				id := list[len(list)-1]
+				sess, err = mgr.Load(id)
+				if err != nil {
+					// Fallback to absolute path if ID lookup failed (shouldn't happen with the new list logic)
+					if abs, err2 := filepath.Abs(id); err2 == nil {
+						sess, err = mgr.Load(abs)
+					}
+				}
+			}
+			if sess == nil {
 				sess, err = mgr.Create()
 			}
 		case strings.HasPrefix(opts.PreloadSession, "resume:"):
@@ -91,6 +99,7 @@ func Run(provider llm.Provider, registry *tools.ToolRegistry, mgr *session.Manag
 
 	m := newModel(info.Model, info.Name, string(cfg.ThinkingLevel), info.ContextWindow, ag, eventCh, mgr, cfg, initialInput)
 	m.style = themes.NewStyle(*theme)
+	m.syncHistoryFromAgent()
 	m.models = cfg.Models
 	m.modelIndex = 0
 

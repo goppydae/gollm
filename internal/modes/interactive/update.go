@@ -28,6 +28,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.vp.SetWidth(msg.Width - borderOffset - chatMargin*2)
 		m.input.SetHeight(m.currentInputHeight())
 		m.vp.SetHeight(m.vpHeight())
+		m.refreshViewport()
 		return m, nil
 
 	case tea.KeyPressMsg:
@@ -67,6 +68,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 		return m, nil
+
+	case stopwatch.ResetMsg:
+		m.stopwatch, cmd = m.stopwatch.Update(msg)
+		return m, cmd
 
 	case progress.FrameMsg:
 		if m.isRunning {

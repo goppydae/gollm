@@ -80,7 +80,7 @@ func (m *model) refreshViewport() *model {
 }
 
 func (m *model) buildChatContent() string {
-	chatW := m.vp.Width() - chatMargin*2
+	chatW := m.vp.Width()
 
 	var lines []string
 	for _, e := range m.history {
