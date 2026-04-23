@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "gollm/extensions/proto";
+
+service Extension {
+  rpc Name(Empty) returns (NameResponse);
+  rpc Tools(Empty) returns (ToolsResponse);
+  rpc BeforePrompt(BeforePromptRequest) returns (BeforePromptResponse);
+  rpc AfterToolCall(AfterToolCallRequest) returns (AfterToolCallResponse);
+  rpc ModifySystemPrompt(ModifySystemPromptRequest) returns (ModifySystemPromptResponse);
+}
+
+message Empty {}
+
+message NameResponse {
+  string name = 1;
+}
+
+message ToolDefinition {
+  string name = 1;
+  string description = 2;
+  string parameters_json_schema = 3;
+}
+
+message ToolsResponse {
+  repeated ToolDefinition tools = 1;
+}
+
+// Represents the state passed to BeforePrompt
+message AgentState {
+  string prompt = 1;
+  // Further fields can be added here as needed (e.g. session context)
+}
+
+message BeforePromptRequest {
+  AgentState state = 1;
+}
+
+message BeforePromptResponse {
+  AgentState state = 1;
+}
+
+message ToolCall {
+  string name = 1;
+  string arguments_json = 2;
+}
+
+message ToolResult {
+  string output = 1;
+  string error = 2;
+}
+
+message AfterToolCallRequest {
+  ToolCall call = 1;
+  ToolResult result = 2;
+}
+
+message AfterToolCallResponse {
+  ToolResult result = 1;
+}
+
+message ModifySystemPromptRequest {
+  string current_prompt = 1;
+}
+
+message ModifySystemPromptResponse {
+  string modified_prompt = 1;
+}

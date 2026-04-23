@@ -1,0 +1,14 @@
+{
+  "defaultProvider": "openai",
+  "defaultModel": "llama3",
+  "openAIBaseURL": "http://localhost:11434",
+  "mode": "interactive",
+  "thinkingLevel": "off",
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 16384,
+    "keepRecentTokens": 20000
+  },
+  "sessionDir": "~/.gollm/sessions",
+  "plugins": ["~/.gollm/plugins"]
+}
