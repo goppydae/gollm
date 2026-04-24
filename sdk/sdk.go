@@ -98,6 +98,12 @@ type Config struct {
 	// MaxTokens caps the response length (0 = provider default).
 	MaxTokens int
 
+	// MaxSteps caps the number of recursive tool calls per turn (0 = default 10).
+	MaxSteps int
+
+	// DryRun mode prevents tools from performing destructive actions.
+	DryRun bool
+
 	// Tools registers additional tools beyond the builtins.
 	// Pass tools.Read{}, tools.Write{}, tools.Bash{}, etc.
 	Tools []Tool
@@ -137,6 +143,12 @@ func NewAgent(cfg Config) (*Agent, error) {
 	}
 	if cfg.MaxTokens > 0 {
 		ag.SetMaxTokens(cfg.MaxTokens)
+	}
+	if cfg.MaxSteps > 0 {
+		ag.SetMaxSteps(cfg.MaxSteps)
+	}
+	if cfg.DryRun {
+		ag.SetDryRun(true)
 	}
 	if len(cfg.Extensions) > 0 {
 		ag.SetExtensions(cfg.Extensions)

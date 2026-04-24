@@ -18,7 +18,18 @@ func (a *Agent) runTurn(ctx context.Context) {
 		close(a.done)
 	}()
 
+	step := 0
 	for {
+		step++
+		if step > a.state.MaxSteps {
+			_ = a.lifeState.Transition(StateError)
+			a.events.Publish(Event{
+				Type:  EventError,
+				Error: fmt.Errorf("maximum recursive steps (%d) exceeded", a.state.MaxSteps),
+			})
+			return
+		}
+
 		// 1. Drain queues before next LLM call (or turn completion)
 		if a.drainQueues() {
 			continue
@@ -259,6 +270,12 @@ func (a *Agent) execTool(ctx context.Context, tc *llm.ToolCall) *tools.ToolResul
 		return &tools.ToolResult{
 			Content: fmt.Sprintf("unknown tool: %s", tc.Name),
 			IsError: true,
+		}
+	}
+
+	if a.dryRun && !tool.IsReadOnly() {
+		return &tools.ToolResult{
+			Content: fmt.Sprintf("Dry run: would have executed tool %q with args: %s", tc.Name, string(tc.Args)),
 		}
 	}
 

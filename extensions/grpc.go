@@ -171,6 +171,7 @@ type RemoteTool struct {
 func (t *RemoteTool) Name() string             { return t.name }
 func (t *RemoteTool) Description() string      { return t.description }
 func (t *RemoteTool) Schema() json.RawMessage  { return t.schema }
+func (t *RemoteTool) IsReadOnly() bool       { return false }
 
 func (t *RemoteTool) Execute(ctx context.Context, args json.RawMessage, update tools.ToolUpdate) (*tools.ToolResult, error) {
 	resp, err := t.client.ExecuteTool(ctx, &proto.ToolCall{

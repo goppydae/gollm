@@ -64,10 +64,14 @@ func Load(path string) (*Prompt, error) {
 }
 
 // Expand substitutes positional arguments ($1, $2, …) into the template.
+// It wraps arguments in <untrusted_input> tags to mitigate prompt injection.
 func Expand(p *Prompt, args ...string) string {
 	result := p.Template
 	for i, arg := range args {
-		result = strings.ReplaceAll(result, fmt.Sprintf("$%d", i+1), arg)
+		// Basic sanitization: prevent breakout from the tag
+		safeArg := strings.ReplaceAll(arg, "</untrusted_input>", "[REDACTED]")
+		tagged := fmt.Sprintf("<untrusted_input>\n%s\n</untrusted_input>", safeArg)
+		result = strings.ReplaceAll(result, fmt.Sprintf("$%d", i+1), tagged)
 	}
 	return strings.TrimSpace(result)
 }

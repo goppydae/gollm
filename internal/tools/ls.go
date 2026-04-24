@@ -124,3 +124,5 @@ func formatLong(name string, info os.FileInfo) string {
 	}
 	return fmt.Sprintf("%s %8d %s %s", kind, info.Size(), info.ModTime().Format(time.DateTime), name)
 }
+
+func (Ls) IsReadOnly() bool { return true }

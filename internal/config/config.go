@@ -69,6 +69,12 @@ type Config struct {
 	AnthropicAPIKey  string `mapstructure:"anthropicApiKey"`
 	GoogleAPIKey     string `mapstructure:"googleApiKey"`
 	LlamaCppBaseURL  string `mapstructure:"llamaCppBaseURL"`
+
+	// Maximum number of recursive tool calls per turn
+	MaxSteps int `mapstructure:"maxSteps"`
+
+	// DryRun mode: tools don't perform destructive actions
+	DryRun bool `mapstructure:"dryRun"`
 }
 
 // Load reads configuration from the global (~/.gollm/config.json) and project-local
@@ -186,4 +192,6 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("compaction.enabled", true)
 	v.SetDefault("compaction.reserveTokens", 16384)
 	v.SetDefault("compaction.keepRecentTokens", 20000)
+	v.SetDefault("maxSteps", 10)
+	v.SetDefault("dryRun", false)
 }

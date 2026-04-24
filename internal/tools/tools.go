@@ -13,6 +13,7 @@ type Tool interface {
 	Description() string
 	Schema() json.RawMessage // JSON Schema for parameters
 	Execute(ctx context.Context, args json.RawMessage, update ToolUpdate) (*ToolResult, error)
+	IsReadOnly() bool
 }
 
 // ToolUpdate is a callback for streaming partial results.

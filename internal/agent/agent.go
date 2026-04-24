@@ -69,6 +69,7 @@ type Agent struct {
 	mu           sync.RWMutex
 	lifeState    *StateMachine
 	extensions   []Extension
+	dryRun       bool
 }
 
 // GetInfo returns the current model's provider info.
@@ -94,6 +95,7 @@ func New(provider llm.Provider, registry *tools.ToolRegistry) *Agent {
 			Provider:     info.Name,
 			SystemPrompt: "You are a helpful coding assistant.",
 			Thinking:     ThinkingMedium,
+			MaxSteps:     10,
 		},
 		provider: provider,
 		tools:    registry,
@@ -164,6 +166,27 @@ func (a *Agent) SetMaxTokens(n int) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.state.MaxTokens = n
+}
+ 
+// SetMaxSteps sets the maximum number of recursive tool calls per turn.
+func (a *Agent) SetMaxSteps(n int) {
+	if a.IsRunning() {
+		return
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.state.MaxSteps = n
+}
+
+// SetDryRun sets the agent's dry-run mode.
+func (a *Agent) SetDryRun(dry bool) {
+	if a.IsRunning() {
+		return
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.dryRun = dry
+	a.state.DryRun = dry
 }
 
 // SetSessionName sets a human-readable name for the current session.

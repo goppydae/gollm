@@ -309,10 +309,20 @@ func handleConfigCommand(cfg *config.Config) (*slashResult, error) {
 	sb.WriteString("Providers\n")
 	fmt.Fprintf(&sb, "Ollama: %s\n", cfg.OllamaBaseURL)
 	fmt.Fprintf(&sb, "OpenAI: %s\n", cfg.OpenAIBaseURL)
+	if cfg.OpenAIAPIKey != "" {
+		sb.WriteString("OpenAI Key: set\n")
+	} else {
+		sb.WriteString("OpenAI Key: (no key)\n")
+	}
 	if anthropicKeySet {
 		sb.WriteString("Anthropic: key set\n")
 	} else {
 		sb.WriteString("Anthropic: (no key)\n")
+	}
+	if cfg.GoogleAPIKey != "" {
+		sb.WriteString("Google: key set\n")
+	} else {
+		sb.WriteString("Google: (no key)\n")
 	}
 	fmt.Fprintf(&sb, "llama.cpp: %s\n", cfg.LlamaCppBaseURL)
 	sb.WriteString("\n")

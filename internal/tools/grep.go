@@ -237,3 +237,5 @@ func grepFile(file string, re *regexp.Regexp, before, after, maxMatches int) (st
 
 	return results.String(), len(matches), nil
 }
+
+func (Grep) IsReadOnly() bool { return true }

@@ -174,3 +174,5 @@ func findFiles(root, glob, fileType string) ([]string, error) {
 
 	return matches, err
 }
+
+func (Find) IsReadOnly() bool { return true }

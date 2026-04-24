@@ -162,3 +162,5 @@ func editRegex(content, pattern, replacement string, offset int) (string, error)
 
 	return re.ReplaceAllString(content, replacement), nil
 }
+
+func (Edit) IsReadOnly() bool { return false }

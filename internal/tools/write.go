@@ -89,3 +89,5 @@ func (Write) Execute(ctx context.Context, args json.RawMessage, update ToolUpdat
 
 	return result, nil
 }
+
+func (Write) IsReadOnly() bool { return false }

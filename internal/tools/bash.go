@@ -127,6 +127,8 @@ func (t Bash) Execute(ctx context.Context, args json.RawMessage, update ToolUpda
 	return result, nil
 }
 
+func (Bash) IsReadOnly() bool { return false }
+
 
 
 

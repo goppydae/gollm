@@ -100,6 +100,8 @@ func (s *SkillTool) Execute(ctx context.Context, args json.RawMessage, update to
 	}, nil
 }
 
+func (s *SkillTool) IsReadOnly() bool { return true }
+
 // SkillLoader discovers and loads Markdown-based skills.
 type SkillLoader struct {
 	Dirs []string

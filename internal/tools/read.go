@@ -117,3 +117,5 @@ func splitLines(s string) []string {
 func stringsJoined(s []string, sep string) string {
 	return strings.Join(s, sep)
 }
+
+func (Read) IsReadOnly() bool { return true }
