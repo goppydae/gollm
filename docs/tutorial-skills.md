@@ -6,9 +6,9 @@ Skills are Markdown files that provide `gollm` with specialized, reusable instru
 
 ## How Skills Work
 
-When `gollm` starts, it scans the skill directories and adds a list of available skills to the system prompt. The agent knows which skills exist and their descriptions. You can explicitly invoke a skill with `/skill:<name>` from the TUI, or the agent may suggest using one automatically.
+When `gollm` starts, it scans the skill directories and adds a list of available skills to the system prompt. The agent knows which skills exist and their descriptions. You can explicitly invoke a skill with `/skill:<name>` from the TUI, or the agent may choose to invoke one automatically via the `read` tool or a specialized skill tool call.
 
-When you invoke a skill, its Markdown content is wrapped in a `<skill>` tag and sent to the agent:
+When you invoke a skill via `/skill:<name>`, it is executed as a **skill tool**, which loads the content and sends it to the agent:
 
 ```
 <skill name="refactor" location="/path/to/refactor/SKILL.md">
@@ -208,5 +208,5 @@ Structure your explanation as:
 
 - **Keep skills focused.** One skill = one task type. Compose them with arguments rather than making a single skill do everything.
 - **Use relative file references** — when your skill body references files, note they resolve relative to the skill's directory. The agent is told the skill's location so it can use the `read` tool on supporting files.
-- **Test your skill** by invoking it with `/skill:<name>` in the TUI. The exact text sent to the agent is shown in the chat history.
+- **Test your skill** by invoking it with `/skill:<name>` in the TUI. The skill's content and its effect on the conversation will be visible in the tool output cards.
 - **Override skills per-project** — place a skill with the same name in `.gollm/skills/` to override the global version for a specific project.

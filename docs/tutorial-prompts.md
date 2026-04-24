@@ -91,7 +91,7 @@ Describe the bug you found in the $1 component:
 
 Templates support positional argument placeholders: `$1`, `$2`, etc.
 
-When you invoke a template via the slash command handler (not the interactive TUI), arguments after the template name are substituted. In the TUI, the template expands as-is and you fill in the values manually.
+When you invoke a template via the slash command handler (not the interactive TUI), arguments after the template name are substituted. To mitigate prompt injection, `gollm` automatically wraps these arguments in `<untrusted_input>` tags. In the TUI, the template expands as-is and you fill in the values manually.
 
 ---
 

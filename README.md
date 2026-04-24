@@ -14,6 +14,7 @@
 - **Aggressively Extensible** — Every tool, provider, and behavior is a plugin interface. Supports gRPC extensions, markdown skills, and reusable prompt templates.
 - **Session Persistence** — Intelligent JSONL-backed session management with project-aware storage, branching, forking, and tree visualization.
 - **Flexible Modes** — TUI mode, one-shot JSON mode, or a headless RPC server.
+- **Security & Safety** — Hard recursion limits (`MaxSteps`), dry-run safety for destructive tools, and automatic prompt injection mitigation.
 
 ---
 
@@ -59,7 +60,7 @@ glm --mode rpc
 
 ### 1. TUI Mode (default / `--mode tui`)
 
-A rich, Bubble Tea-powered TUI with real-time streaming, tool cards, and session management.
+A rich, Bubble Tea-powered TUI with real-time streaming, tool cards, session management, and a live context usage progress bar in the status footer.
 
 #### Input
 
@@ -72,6 +73,7 @@ A rich, Bubble Tea-powered TUI with real-time streaming, tool cards, and session
 | `Esc` | Cancel streaming / close modal |
 | `Ctrl+O` | Toggle tool call output expansion |
 | `Ctrl+P` | Cycle to the next model (from `--models` flag) |
+| `↑/↓` | Navigate prompt history (while in editor) |
 
 #### Slash Commands
 
@@ -138,6 +140,8 @@ Headless JSONL server over stdin/stdout. Ideal for editor integrations and exter
 | `ls` | List directory contents |
 | `find` | Locate files using glob patterns |
 
+> **Note:** Dangerous tools (`bash`, `write`, `edit`) support `--dry-run` to preview actions without executing them.
+
 ---
 
 ## Session Management
@@ -175,6 +179,17 @@ Register external tools and lifecycle hooks via gRPC. See [`extensions/`](extens
 
 ---
 
+## Security & Safety
+
+`gollm` is designed to be a safe and predictable assistant:
+
+- **Recursion Limits** — The `maxSteps` setting (default: 10) prevents infinite tool loops that could burn credits or cause local resource exhaustion.
+- **Dry Run Mode** — Use `--dry-run` to see what the agent *would* do without actually modifying files or executing shell commands.
+- **API Key Hygiene** — API keys are masked in CLI output and the `/config` modal to prevent accidental leaks during screen sharing or logging.
+- **Prompt Sanitization** — All user-supplied arguments in prompt templates are wrapped in `<untrusted_input>` tags to mitigate prompt injection attacks.
+
+---
+
 ## Configuration
 
 `gollm` uses layered JSON configuration:
@@ -207,12 +222,14 @@ Register external tools and lifecycle hooks via gRPC. See [`extensions/`](extens
 --model / -m         Model to use
 --provider           Provider (ollama, openai, anthropic, llamacpp, google)
 --thinking           Thinking level (off, low, medium, high)
---theme              UI theme (dark, mocha, light, …)
+--theme              UI theme (dark, light, cyberpunk, synthwave, …)
 --session            Resume a specific session by ID or path
 --continue / -c      Resume the most recent session
 --mode               Mode: tui (default), json, rpc
 --no-session         Disable session persistence
 --models             Comma-separated model list for Ctrl+P cycling
+--max-steps          Max recursive tool steps (default: 10)
+--dry-run            Enable safety mode for dangerous tools
 ```
 
 ---

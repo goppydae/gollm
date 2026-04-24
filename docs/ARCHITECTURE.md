@@ -154,6 +154,14 @@ A `ToolRegistry` holds all registered tools. During a turn, when the LLM emits a
 
 **Built-in tools:** `read`, `write`, `edit`, `bash`, `grep`, `ls`, `find`
 
+### Security & Safety Enforcements
+
+The tool system enforces several safety layers:
+
+- **Recursion Depth (`MaxSteps`)**: The `runTurn` loop tracks steps and aborts with an error if the LLM exceeds the configured `MaxSteps` (default: 10). This prevents "hallucination loops" or infinite tool chains.
+- **Dry-Run Mode**: When `DryRun` is enabled, any tool that is not marked as read-only will bypass execution and return a descriptive preview of what it *would* have done.
+- **Input Sanitization**: Prompt template expansion automatically wraps user inputs in `<untrusted_input>` tags to prevent prompt breakout and injection into the base instructions.
+
 ---
 
 ## Session Management
@@ -203,6 +211,10 @@ The TUI is built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) (
 | `keys.go` | Keybinding helpers (`Matches`, `K.Ctrl(...)`) |
 | `types.go` | `historyEntry`, `contentItem`, `toolCallEntry` — render data model |
 | `utils.go` | Helper functions |
+
+### Prompt History
+
+The TUI maintains a per-session prompt history in `m.promptHistory`. Users can navigate through previous prompts using the **Up** and **Down** arrow keys while the editor is focused. The current draft is preserved as `m.draftInput` when navigating away from the prompt line. The status footer also includes a real-time **context window progress bar** driven by token usage events from the agent.
 
 ### Render Data Model
 
