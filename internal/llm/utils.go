@@ -49,6 +49,10 @@ var ModelContextWindows = map[string]int{
 	"gpt-3.5":      16385,
 	"claude-3-5":   200000,
 	"claude-3":     200000,
+	"qwen":         131072,
+	"llama-3.1":    131072,
+	"llama-3":      8192,
+	"mistral":      32768,
 }
 
 // GetContextWindow returns the context window for a model name, or 0 if unknown.

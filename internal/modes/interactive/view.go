@@ -284,7 +284,7 @@ func renderFooter(m *model) string {
 	left := strings.Join(leftParts, " ")
 
 	// Right side — progress bar for context usage
-	if m.contextWindow <= 0 || m.tokens <= 0 {
+	if m.contextWindow <= 0 {
 		return left
 	}
 	right := m.renderProgressBar()
@@ -303,6 +303,5 @@ func (m *model) renderProgressBar() string {
 	if pct > 1 {
 		pct = 1
 	}
-	m.progressBar.SetPercent(pct)
-	return m.progressBar.View()
+	return m.progressBar.ViewAs(pct)
 }
