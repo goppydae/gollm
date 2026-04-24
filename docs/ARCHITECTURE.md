@@ -280,6 +280,28 @@ The SDK re-exports core types (`Agent`, `Event`, `EventType`, `Tool`, `ThinkingL
 
 ---
 
+## Build & Release System
+
+`gollm` uses a combination of **Mage** and **GitHub Actions** for CI/CD.
+
+### Versioning
+
+The project version is maintained in a [VERSION](file:///Users/sysop/Projects/giggle-silo/gollm/VERSION) file in the repository root. During build, `Magefile.go` reads this file and injects it into the binary using linker flags (`-ldflags "-X main.version=..."`).
+
+### Build Tool (Mage)
+
+The `Magefile.go` defines several targets:
+- `Build`: Compiles the `glm` binary for the current platform with version injection.
+- `Test`: Runs all unit tests with optional coverage support.
+- `Release`: Cross-compiles `glm` for Linux, macOS, and Windows (AMD64/ARM64), disables CGO for static portability, and packages artifacts into compressed archives in `dist/`.
+
+### CI/CD Pipelines
+
+1. **Continuous Integration** (`ci.yml`): Triggered on every push to `main` and all pull requests. It runs `mage all` (build, test, vet, lint) within a Nix environment and uploads the resulting binary as a build artifact.
+2. **Automated Release** (`release.yml`): Triggered by pushing a version tag (e.g., `v1.2.3`). It runs `mage release` to build cross-platform assets and uses `softprops/action-gh-release` to publish them to a new GitHub Release.
+
+---
+
 ## Data Flow Summary
 
 ```

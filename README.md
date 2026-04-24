@@ -262,18 +262,23 @@ ag.Prompt(context.Background(), "List the Go files in this directory")
 
 ## Development
 
+`gollm` uses [Mage](https://magefile.org/) as its build system and [Nix](https://nixos.org/) for environment management.
+
 ```bash
-# Enter the Nix dev shell
+# Enter the Nix dev shell (includes Go, Mage, etc.)
 nix develop
 
-# Build
-go build ./...
+# Build the glm binary (uses VERSION file for injection)
+mage build
 
-# Test
-go test ./...
+# Run tests
+mage test
 
-# Run locally
-go run ./cmd/glm
+# Run all checks (build, test, vet, lint)
+mage all
+
+# Create cross-platform release artifacts (in dist/)
+mage release
 ```
 
 ---
