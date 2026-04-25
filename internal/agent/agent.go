@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -38,38 +40,139 @@ type Event struct {
 type EventType string
 
 const (
-	EventAgentStart     EventType = "agent_start"
-	EventTurnStart      EventType = "turn_start"
-	EventMessageStart   EventType = "message_start"
-	EventTextDelta      EventType = "text_delta"
-	EventThinkingDelta  EventType = "thinking_delta"
-	EventToolCall       EventType = "tool_call"
-	EventToolDelta      EventType = "tool_delta"
-	EventToolOutput     EventType = "tool_output"
-	EventMessageEnd     EventType = "message_end"
-	EventAgentEnd       EventType = "agent_end"
-	EventError          EventType = "error"
-	EventAbort          EventType = "abort"
-	EventQueueUpdate    EventType = "queue_update"
-	EventCompactStart   EventType = "compact_start"
-	EventCompactEnd     EventType = "compact_end"
-	EventStateChange    EventType = "state_change"
-	EventTokens         EventType = "tokens"
+	EventAgentStart    EventType = "agent_start"
+	EventTurnStart     EventType = "turn_start"
+	EventMessageStart  EventType = "message_start"
+	EventTextDelta     EventType = "text_delta"
+	EventThinkingDelta EventType = "thinking_delta"
+	EventToolCall      EventType = "tool_call"
+	EventToolDelta     EventType = "tool_delta"
+	EventToolOutput    EventType = "tool_output"
+	EventMessageEnd    EventType = "message_end"
+	EventAgentEnd      EventType = "agent_end"
+	EventError         EventType = "error"
+	EventAbort         EventType = "abort"
+	EventQueueUpdate   EventType = "queue_update"
+	EventCompactStart  EventType = "compact_start"
+	EventCompactEnd    EventType = "compact_end"
+	EventStateChange   EventType = "state_change"
+	EventTokens        EventType = "tokens"
 )
+
+// summarySentinel is prepended to every generated summary so detection is reliable
+// regardless of the LLM's exact phrasing of section headers.
+const summarySentinel = "<!-- gollm-summary -->\n"
+
+const SUMMARIZATION_PROMPT = `The messages above are a conversation to summarize. Create a structured context checkpoint summary that another LLM will use to continue the work.
+
+Start your response with the exact string: <!-- gollm-summary -->
+
+Then use this EXACT format:
+
+## Goal
+[What is the user trying to accomplish? Can be multiple items if the session covers different tasks.]
+
+## Constraints & Preferences
+- [Any constraints, preferences, or requirements mentioned by user]
+- [Or "(none)" if none were mentioned]
+
+## Progress
+### Done
+- [x] [Completed tasks/changes]
+
+### In Progress
+- [ ] [Current work]
+
+### Blocked
+- [Issues preventing progress, if any]
+
+## Key Decisions
+- **[Decision]**: [Brief rationale]
+
+## Next Steps
+1. [Ordered list of what should happen next]
+
+## Critical Context
+- [Any data, examples, or references needed to continue]
+- [Or "(none)" if not applicable]
+
+Keep each section concise. Preserve exact file paths, function names, and error messages.`
+
+const UPDATE_SUMMARIZATION_PROMPT = `The messages above are NEW conversation messages to incorporate into the existing summary provided in <previous-summary> tags.
+
+Start your response with the exact string: <!-- gollm-summary -->
+
+Update the existing structured summary with new information. RULES:
+- PRESERVE all existing information from the previous summary
+- ADD new progress, decisions, and context from the new messages
+- UPDATE the Progress section: move items from "In Progress" to "Done" when completed
+- UPDATE "Next Steps" based on what was accomplished
+- PRESERVE exact file paths, function names, and error messages
+- If something is no longer relevant, you may remove it
+
+Use this EXACT format:
+
+## Goal
+[Preserve existing goals, add new ones if the task expanded]
+
+## Constraints & Preferences
+- [Preserve existing, add new ones discovered]
+
+## Progress
+### Done
+- [x] [Include previously done items AND newly completed items]
+
+### In Progress
+- [ ] [Current work - update based on progress]
+
+### Blocked
+- [Current blockers - remove if resolved]
+
+## Key Decisions
+- **[Decision]**: [Brief rationale] (preserve all previous, add new)
+
+## Next Steps
+1. [Update based on current state]
+
+## Critical Context
+- [Preserve important context, add new if needed]
+
+Keep each section concise. Preserve exact file paths, function names, and error messages.`
+
+const TURN_PREFIX_SUMMARIZATION_PROMPT = `This is the PREFIX of a turn that was too large to keep. The SUFFIX (recent work) is retained.
+
+Summarize the prefix to provide context for the retained suffix:
+
+## Original Request
+[What did the user ask for in this turn?]
+
+## Early Progress
+- [Key decisions and work done in the prefix]
+
+## Context for Suffix
+- [Information needed to understand the retained recent work]
+
+Be concise. Focus on what's needed to understand the kept suffix.`
 
 // Agent owns the transcript, emits events, and executes tools.
 type Agent struct {
-	state    *AgentState
-	provider llm.Provider
-	tools    *tools.ToolRegistry
-	events   *events.EventBus
-	stop         chan struct{}
-	stopping     atomic.Bool
-	done         chan struct{}
-	mu           sync.RWMutex
-	lifeState    *StateMachine
-	extensions   []Extension
-	dryRun       bool
+	state      *AgentState
+	provider   llm.Provider
+	tools      *tools.ToolRegistry
+	events     *events.EventBus
+	stop       chan struct{}
+	stopping   atomic.Bool
+	done       chan struct{}
+	doneOnce   sync.Once
+	mu         sync.RWMutex
+	lifeState  *StateMachine
+	extensions []Extension
+	dryRun     bool
+	compaction struct {
+		Enabled          bool
+		ReserveTokens    int
+		KeepRecentTokens int
+	}
 }
 
 // GetInfo returns the current model's provider info.
@@ -95,7 +198,6 @@ func New(provider llm.Provider, registry *tools.ToolRegistry) *Agent {
 			Provider:     info.Name,
 			SystemPrompt: "You are a helpful coding assistant.",
 			Thinking:     ThinkingMedium,
-			MaxSteps:     10,
 		},
 		provider: provider,
 		tools:    registry,
@@ -104,7 +206,7 @@ func New(provider llm.Provider, registry *tools.ToolRegistry) *Agent {
 		done:     make(chan struct{}),
 	}
 	ag.lifeState = NewStateMachine(StateIdle, func(st StateTransition) {
-		ag.events.Publish(Event{
+		go ag.events.Publish(Event{
 			Type:        EventStateChange,
 			StateChange: &st,
 		})
@@ -167,15 +269,19 @@ func (a *Agent) SetMaxTokens(n int) {
 	defer a.mu.Unlock()
 	a.state.MaxTokens = n
 }
- 
-// SetMaxSteps sets the maximum number of recursive tool calls per turn.
-func (a *Agent) SetMaxSteps(n int) {
-	if a.IsRunning() {
-		return
-	}
+
+// SetCompactionConfig updates the compaction settings.
+func (a *Agent) SetCompactionConfig(enabled bool, reserve, keepRecent int) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	a.state.MaxSteps = n
+	a.compaction.Enabled = enabled
+	a.compaction.ReserveTokens = reserve
+	a.compaction.KeepRecentTokens = keepRecent
+}
+
+// closeDone closes a.done exactly once per Prompt/InvokeTool lifecycle.
+func (a *Agent) closeDone() {
+	a.doneOnce.Do(func() { close(a.done) })
 }
 
 // SetDryRun sets the agent's dry-run mode.
@@ -221,7 +327,7 @@ func (a *Agent) SetExtensions(exts []Extension) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.extensions = exts
-	
+
 	// Also register their tools
 	for _, ext := range exts {
 		for _, t := range ext.Tools() {
@@ -248,6 +354,7 @@ func (a *Agent) Prompt(ctx context.Context, text string, images ...Image) error 
 	// Reset channels (prior goroutine finished — IsRunning was false above).
 	a.stop = make(chan struct{})
 	a.done = make(chan struct{})
+	a.doneOnce = sync.Once{}
 	a.stopping.Store(false)
 
 	// Add user message
@@ -256,6 +363,7 @@ func (a *Agent) Prompt(ctx context.Context, text string, images ...Image) error 
 		msg.Images = images
 	}
 
+	msg.Timestamp = time.Now()
 	a.mu.Lock()
 	a.state.Messages = append(a.state.Messages, msg)
 	a.state.Session.UpdatedAt = time.Now()
@@ -329,11 +437,13 @@ func (a *Agent) Idle() <-chan struct{} {
 	return a.done
 }
 
-// Messages returns the conversation messages.
+// Messages returns a copy of the conversation messages.
 func (a *Agent) Messages() []Message {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.state.Messages
+	res := make([]Message, len(a.state.Messages))
+	copy(res, a.state.Messages)
+	return res
 }
 
 // ToolRegistry returns the tool registry.
@@ -347,54 +457,429 @@ func (a *Agent) EventBus() *events.EventBus {
 }
 
 // Compact trims the transcript to stay within approximate token budgets.
-// Compact trims the transcript to stay within approximate token budgets.
-// Keeps the first anchorN messages and the most recent tail.
-func (a *Agent) Compact(keepRecentTokens int) {
+// It implements a pi-mono style summarization and file tracking strategy.
+func (a *Agent) Compact(ctx context.Context, keepRecentTokens int) {
 	from := a.lifeState.Current()
-	// Transition to compacting. If we fail (e.g. already in a sensitive state), abort compaction.
-	if err := a.lifeState.Transition(StateCompacting); err != nil {
+	if from == StateCompacting || from == StateAborting {
 		return
 	}
+
+	// 1. Snapshot and Guard
+	a.mu.Lock()
+
+	if err := a.lifeState.Transition(StateCompacting); err != nil {
+		a.mu.Unlock()
+		return
+	}
+
+	var freed int
+	// Signal start with a descriptive value for the TUI
+	a.events.Publish(Event{Type: EventCompactStart, Content: "Compacting session context..."})
+
 	defer func() {
-		if a.lifeState.Current() == StateCompacting {
-			_ = a.lifeState.Transition(from)
+		// Fix #2: restore the lifecycle state we entered from so that a manual
+		// /compact (called while idle) doesn't leave the state machine stuck in
+		// StateCompacting, which would freeze the TUI and block new Prompt calls.
+		_ = a.lifeState.Transition(from)
+
+		// Fix #4: release the lock before publishing so that synchronous
+		// Subscribe() callbacks can safely read agent state without deadlocking.
+		content := ""
+		if freed > 0 {
+			content = fmt.Sprintf("Context compacted. Freed %d tokens.", freed)
 		}
+		a.mu.Unlock()
+		a.events.Publish(Event{Type: EventCompactEnd, Value: int64(freed), Content: content})
 	}()
 
-	a.events.Publish(Event{Type: EventCompactStart})
-	defer a.events.Publish(Event{Type: EventCompactEnd})
-
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	const anchorN = 2
-	if len(a.state.Messages) <= anchorN+2 {
+	tokensBefore := a.estimateContextTokensNoLock()
+	messages := a.state.Messages
+	if len(messages) <= 1 {
 		return
 	}
 
-	// Rough heuristic: 4 chars ≈ 1 token.
-	budget := keepRecentTokens
-	tail := a.state.Messages[anchorN:]
-	kept := 0
-	tokens := 0
-	for i := len(tail) - 1; i >= 0; i-- {
-		tokens += EstimateMessageTokens(tail[i])
-		if tokens > budget {
+	// 2. Identify previous summary and boundary
+	var previousSummary string
+	boundaryStart := 0
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == "success" && strings.HasPrefix(messages[i].Content, summarySentinel) {
+			previousSummary = messages[i].Content
+			boundaryStart = i + 1
 			break
 		}
-		kept = len(tail) - i
 	}
-	if kept == 0 {
-		kept = 2
+
+	// 3. Find Cut Point
+	// Fix #5: deduct system-prompt tokens and a rough summary-overhead allowance
+	// from the kept-tail budget. Without this, post-compaction total tokens
+	// (system + summary + tail) can still exceed the threshold, causing an
+	// immediate re-compaction on the very next turn.
+	const summaryOverheadTokens = 2048
+	sysTokens := a.estimateMessageTokens(Message{Content: a.state.SystemPrompt})
+	effectiveBudget := keepRecentTokens - sysTokens - summaryOverheadTokens
+	if effectiveBudget < 512 {
+		effectiveBudget = 512
 	}
-	start := len(a.state.Messages) - kept
-	if start <= anchorN {
+	cutResult := a.findCutPoint(messages, boundaryStart, len(messages), effectiveBudget)
+	if cutResult.FirstKeptIndex <= boundaryStart {
+		// Nothing to compact or we already reached the limit
 		return
 	}
-	a.state.Messages = append(a.state.Messages[:anchorN:anchorN], a.state.Messages[start:]...)
+
+	// 4. Determine summarizing ranges
+	historyEnd := cutResult.FirstKeptIndex
+	if cutResult.IsSplitTurn {
+		historyEnd = cutResult.TurnStartIndex
+	}
+
+	messagesToSummarize := messages[boundaryStart:historyEnd]
+	var turnPrefixMessages []Message
+	if cutResult.IsSplitTurn {
+		turnPrefixMessages = messages[cutResult.TurnStartIndex:cutResult.FirstKeptIndex]
+	}
+
+	// 5. Extract File Context
+	readFiles, modFiles := a.extractFileContext(messagesToSummarize)
+	if cutResult.IsSplitTurn {
+		r, m := a.extractFileContext(turnPrefixMessages)
+		readFiles = append(readFiles, r...)
+		modFiles = append(modFiles, m...)
+	}
+	// Fix #10: carry forward file activity recorded in the previous summary so
+	// files touched before the last compaction boundary are not silently lost.
+	if previousSummary != "" {
+		pr, pm := parseFileActivityFromSummary(previousSummary)
+		readFiles = append(readFiles, pr...)
+		modFiles = append(modFiles, pm...)
+	}
+
+	// 6. Generate Summaries via LLM
+	a.mu.Unlock()
+	
+	summaryChan := make(chan string, 1)
+	errChan := make(chan error, 1)
+	go func() {
+		s, err := a.generateSummary(ctx, messagesToSummarize, previousSummary)
+		if err != nil {
+			errChan <- err
+			return
+		}
+		summaryChan <- s
+	}()
+
+	var turnPrefixSummary string
+	if cutResult.IsSplitTurn {
+		s, err := a.generateTurnPrefixSummary(ctx, turnPrefixMessages)
+		if err != nil {
+			// Non-fatal, but we should log it
+			turnPrefixSummary = "## Turn Prefix Summary\n(Summarization failed)"
+		} else {
+			turnPrefixSummary = s
+		}
+	}
+
+	var summaryText string
+	select {
+	case s := <-summaryChan:
+		summaryText = s
+	case err := <-errChan:
+		summaryText = "## Session Progress Summary\n(Summarization failed: " + err.Error() + ")"
+	case <-ctx.Done():
+		a.mu.Lock()
+		return
+	}
+
+	// Append file activity
+	summaryText += a.formatFileActivity(readFiles, modFiles)
+
+	a.mu.Lock()
+
+	// RE-VALIDATE: Did the messages change while we were unlocked?
+	// If messages were removed or the cut index is now out of bounds, abort.
+	if len(a.state.Messages) < len(messages) || cutResult.FirstKeptIndex > len(a.state.Messages) {
+		return
+	}
+
+	// 7. Rebuild History
+	newMessages := make([]Message, 0, 1+len(a.state.Messages)-cutResult.FirstKeptIndex+1)
+	
+	// Add the main iterative summary
+	newMessages = append(newMessages, Message{
+		Role:      "success",
+		Content:   summaryText,
+		Timestamp: time.Now(),
+	})
+
+	// Add split turn prefix summary if needed
+	if cutResult.IsSplitTurn && turnPrefixSummary != "" {
+		newMessages = append(newMessages, Message{
+			Role:      "success",
+			Content:   "**Turn Context (split turn):**\n\n" + turnPrefixSummary,
+			Timestamp: time.Now(),
+		})
+	}
+
+	// Add kept tail
+	newMessages = append(newMessages, a.state.Messages[cutResult.FirstKeptIndex:]...)
+
+	a.state.Messages = newMessages
+
+	tokensAfter := a.estimateContextTokensNoLock()
+	freed = tokensBefore - tokensAfter
+	if freed < 0 {
+		freed = 0
+	}
+}
+
+type cutResult struct {
+	FirstKeptIndex int
+	TurnStartIndex int
+	IsSplitTurn    bool
+}
+
+// findCutPoint finds the index to start keeping messages from.
+func (a *Agent) findCutPoint(messages []Message, start, end, budget int) cutResult {
+	accumulated := 0
+	cutIndex := start
+
+	// Walk backwards from newest
+	for i := end - 1; i >= start; i-- {
+		tokens := a.estimateMessageTokens(messages[i])
+		if accumulated+tokens > budget {
+			// Find closest valid cut point at or after this entry
+			cutIndex = i
+			// Adjust to avoid cutting mid-tool-call
+			for j := i; j < end; j++ {
+				if a.isValidCutPoint(messages, j) {
+					cutIndex = j
+					break
+				}
+			}
+			break
+		}
+		accumulated += tokens
+	}
+
+	if cutIndex <= start {
+		return cutResult{FirstKeptIndex: start}
+	}
+
+	// Determine if we are splitting a turn
+	isUser := messages[cutIndex].Role == "user"
+	turnStart := -1
+	if !isUser {
+		turnStart = a.findTurnStartIndex(messages, cutIndex, start)
+	}
+
+	return cutResult{
+		FirstKeptIndex: cutIndex,
+		TurnStartIndex: turnStart,
+		IsSplitTurn:    !isUser && turnStart != -1,
+	}
+}
+
+func (a *Agent) isValidCutPoint(messages []Message, idx int) bool {
+	role := messages[idx].Role
+	// Don't cut at tool results (role="tool") as they must follow assistant calls
+	return role == "user" || role == "assistant" || role == "success"
+}
+
+func (a *Agent) findTurnStartIndex(messages []Message, idx, start int) int {
+	for i := idx; i >= start; i-- {
+		if messages[i].Role == "user" {
+			return i
+		}
+	}
+	return -1
+}
+
+// generateSummary uses the LLM to create a structured summary of pruned messages.
+func (a *Agent) generateSummary(ctx context.Context, messages []Message, previousSummary string) (string, error) {
+	prompt := SUMMARIZATION_PROMPT
+	if previousSummary != "" {
+		prompt = UPDATE_SUMMARIZATION_PROMPT
+	}
+
+	conversationText := a.serializeConversation(messages)
+	
+	var promptText string
+	if previousSummary != "" {
+		promptText = fmt.Sprintf("<conversation>\n%s\n</conversation>\n\n<previous-summary>\n%s\n</previous-summary>\n\n%s", conversationText, previousSummary, prompt)
+	} else {
+		promptText = fmt.Sprintf("<conversation>\n%s\n</conversation>\n\n%s", conversationText, prompt)
+	}
+
+	req := &llm.CompletionRequest{
+		Model:  a.state.Model,
+		System: "You are a context compaction engine.",
+		Messages: []types.Message{
+			{Role: "user", Content: promptText},
+		},
+	}
+
+	stream, err := a.provider.Stream(ctx, req)
+	if err != nil {
+		return "", err
+	}
+
+	var sb strings.Builder
+	for ev := range stream {
+		switch ev.Type {
+		case llm.EventTextDelta:
+			sb.WriteString(ev.Content)
+		case llm.EventError:
+			return "", ev.Error
+		}
+	}
+
+	return sb.String(), nil
+}
+
+func (a *Agent) generateTurnPrefixSummary(ctx context.Context, messages []Message) (string, error) {
+	conversationText := a.serializeConversation(messages)
+	promptText := fmt.Sprintf("<conversation>\n%s\n</conversation>\n\n%s", conversationText, TURN_PREFIX_SUMMARIZATION_PROMPT)
+
+	req := &llm.CompletionRequest{
+		Model:  a.state.Model,
+		System: "You are a context compaction engine.",
+		Messages: []types.Message{
+			{Role: "user", Content: promptText},
+		},
+	}
+
+	stream, err := a.provider.Stream(ctx, req)
+	if err != nil {
+		return "", err
+	}
+
+	var sb strings.Builder
+	for ev := range stream {
+		switch ev.Type {
+		case llm.EventTextDelta:
+			sb.WriteString(ev.Content)
+		case llm.EventError:
+			return "", ev.Error
+		}
+	}
+
+	return sb.String(), nil
+}
+
+func (a *Agent) serializeConversation(messages []Message) string {
+	var sb strings.Builder
+	for _, m := range messages {
+		// Fix #8: include tool-call ID on tool-result messages so the summarising
+		// LLM can correlate each result with the call that produced it.
+		if m.ToolCallID != "" {
+			fmt.Fprintf(&sb, "[%s|id=%s]: %s\n", m.Role, m.ToolCallID, m.Content)
+		} else {
+			fmt.Fprintf(&sb, "[%s]: %s\n", m.Role, m.Content)
+		}
+		for _, tc := range m.ToolCalls {
+			fmt.Fprintf(&sb, "(tool_call[id=%s]: %s %s)\n", tc.ID, tc.Name, string(tc.Args))
+		}
+	}
+	return sb.String()
+}
+
+func (a *Agent) formatFileActivity(read, mod []string) string {
+	if len(read) == 0 && len(mod) == 0 {
+		return ""
+	}
+	
+	var sb strings.Builder
+	sb.WriteString("\n\n### File Activity\n")
+	if len(read) > 0 {
+		sb.WriteString("- Read: " + strings.Join(read, ", ") + "\n")
+	}
+	if len(mod) > 0 {
+		sb.WriteString("- Modified: " + strings.Join(mod, ", ") + "\n")
+	}
+	return sb.String()
+}
+
+
+// parseFileActivityFromSummary extracts the "### File Activity" section from a
+// previously generated summary so file tracking is preserved across compaction
+// cycles (fix #10).
+func parseFileActivityFromSummary(summary string) (read []string, modified []string) {
+	for _, line := range strings.Split(summary, "\n") {
+		if after, ok := strings.CutPrefix(line, "- Read: "); ok {
+			for _, f := range strings.Split(after, ", ") {
+				if f = strings.TrimSpace(f); f != "" {
+					read = append(read, f)
+				}
+			}
+		} else if after, ok := strings.CutPrefix(line, "- Modified: "); ok {
+			for _, f := range strings.Split(after, ", ") {
+				if f = strings.TrimSpace(f); f != "" {
+					modified = append(modified, f)
+				}
+			}
+		}
+	}
+	return
+}
+
+// extractFileContext scans messages for file-related tool calls.
+func (a *Agent) extractFileContext(messages []Message) (read []string, modified []string) {
+	readMap := make(map[string]bool)
+	modMap := make(map[string]bool)
+
+	for _, m := range messages {
+		for _, tc := range m.ToolCalls {
+			var args struct {
+				Path       string `json:"path"`
+				TargetFile string `json:"TargetFile"` // Common in some gollm tools
+				Target     string `json:"target"`     // Common in others
+			}
+			_ = json.Unmarshal(tc.Args, &args)
+
+			path := args.Path
+			if path == "" { path = args.TargetFile }
+			if path == "" { path = args.Target }
+			if path == "" { continue }
+
+			switch tc.Name {
+			case "read", "ls", "grep", "find":
+				readMap[path] = true
+			case "write", "edit", "replace_file_content", "multi_replace_file_content":
+				modMap[path] = true
+			}
+		}
+	}
+
+	for f := range readMap { read = append(read, f) }
+	for f := range modMap { modified = append(modified, f) }
+	sort.Strings(read)
+	sort.Strings(modified)
+	return
+}
+
+// estimateContextTokensNoLock estimates tokens without taking any locks.
+func (a *Agent) estimateContextTokensNoLock() int {
+	var total int
+	// System prompt
+	total += a.estimateMessageTokens(Message{Role: "system", Content: a.state.SystemPrompt})
+
+	// Messages
+	for _, m := range a.state.Messages {
+		total += a.estimateMessageTokens(m)
+	}
+	return total
+}
+
+func (a *Agent) estimateMessageTokens(m Message) int {
+	if m.Usage != nil {
+		return m.Usage.TotalTokens
+	}
+	return EstimateMessageTokens(m)
 }
 
 func EstimateMessageTokens(m Message) int {
-	// Rough heuristic: 4 chars ≈ 1 token.
+	// Rough heuristic: 4 chars ≈ 1 token for ASCII; code and non-ASCII tokenise
+	// more densely. Apply a 20% overhead to err on the side of early compaction
+	// rather than hitting the context-window hard limit.
 	count := len(m.Content) / 4
 	count += len(m.Thinking) / 4
 	for _, tc := range m.ToolCalls {
@@ -403,7 +888,19 @@ func EstimateMessageTokens(m Message) int {
 	if m.ToolCallID != "" {
 		count += len(m.ToolCallID) / 4
 	}
-	return count
+	// Fix #7: approximate image tokens. Base64-encoded data is ~4/3 the raw byte
+	// size; vision models charge roughly 1 token per 750 bytes of image data.
+	// Using a fixed 1024-token floor per image avoids underestimating tiny images.
+	for _, img := range m.Images {
+		imgTokens := len(img.Data) / 750
+		if imgTokens < 1024 {
+			imgTokens = 1024
+		}
+		count += imgTokens
+	}
+	// 20% safety margin to compensate for the char/token heuristic underestimating
+	// code blocks, non-ASCII text, and per-message formatting overhead.
+	return count * 6 / 5
 }
 
 // Reset clears the conversation history and queues.
@@ -481,6 +978,7 @@ func (a *Agent) InvokeTool(ctx context.Context, name string, args string) error 
 	// Reset channels
 	a.stop = make(chan struct{})
 	a.done = make(chan struct{})
+	a.doneOnce = sync.Once{}
 	a.stopping.Store(false)
 
 	// 1. Create a tool call ID
@@ -495,6 +993,7 @@ func (a *Agent) InvokeTool(ctx context.Context, name string, args string) error 
 			Name: name,
 			Args: json.RawMessage(args),
 		}},
+		Timestamp: time.Now(),
 	})
 	a.mu.Unlock()
 
@@ -518,7 +1017,7 @@ func (a *Agent) InvokeTool(ctx context.Context, name string, args string) error 
 			if !hasStartedTurn {
 				_ = a.lifeState.Transition(StateIdle)
 				a.events.Publish(Event{Type: EventAgentEnd})
-				close(a.done)
+				a.closeDone()
 			}
 		}()
 
@@ -556,11 +1055,11 @@ func (a *Agent) GetSession() *types.Session {
 func (a *Agent) EstimateContextTokens() int {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	total := EstimateMessageTokens(Message{Role: "system", Content: a.state.SystemPrompt})
-	for _, m := range a.state.Messages {
-		total += EstimateMessageTokens(m)
-	}
-	return total
+	return a.estimateContextTokensLocked()
+}
+
+func (a *Agent) estimateContextTokensLocked() int {
+	return a.estimateContextTokensNoLock()
 }
 
 // GetStats returns token usage statistics from the agent's events.
@@ -582,19 +1081,19 @@ func (a *Agent) GetStats() AgentStats {
 	}
 
 	stats := AgentStats{
-		SessionID:     a.state.Session.ID,
-		SessionFile:   "", // Will be set by caller
-		Name:          a.state.Session.Name,
-		CreatedAt:     a.state.Session.CreatedAt,
-		UpdatedAt:     a.state.Session.UpdatedAt,
-		Model:         a.state.Model,
-		Provider:      a.state.Provider,
-		Thinking:      string(a.state.Thinking),
-		UserMessages:  userMsgs,
-		AssistantMsgs: assistantMsgs,
-		ToolCalls:     toolCalls,
-		ToolResults:   toolResults,
-		TotalMessages: userMsgs + assistantMsgs + toolResults,
+		SessionID:      a.state.Session.ID,
+		SessionFile:    "", // Will be set by caller
+		Name:           a.state.Session.Name,
+		CreatedAt:      a.state.Session.CreatedAt,
+		UpdatedAt:      a.state.Session.UpdatedAt,
+		Model:          a.state.Model,
+		Provider:       a.state.Provider,
+		Thinking:       string(a.state.Thinking),
+		UserMessages:   userMsgs,
+		AssistantMsgs:  assistantMsgs,
+		ToolCalls:      toolCalls,
+		ToolResults:    toolResults,
+		TotalMessages:  userMsgs + assistantMsgs + toolResults,
 		QueuedSteer:    len(a.state.SteerQueue),
 		QueuedFollowUp: len(a.state.FollowUpQueue),
 		ContextTokens:  a.EstimateContextTokens(),
@@ -608,24 +1107,24 @@ func (a *Agent) GetStats() AgentStats {
 
 // AgentStats holds session statistics.
 type AgentStats struct {
-	SessionID     string
-	ParentID      string
-	SessionFile   string
-	Name          string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-	Model         string
-	Provider      string
-	Thinking      string
-	UserMessages  int
-	AssistantMsgs int
-	ToolCalls     int
-	ToolResults   int
-	TotalMessages int
-	InputTokens   int
-	OutputTokens  int
-	CacheRead     int
-	CacheWrite    int
+	SessionID      string
+	ParentID       string
+	SessionFile    string
+	Name           string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	Model          string
+	Provider       string
+	Thinking       string
+	UserMessages   int
+	AssistantMsgs  int
+	ToolCalls      int
+	ToolResults    int
+	TotalMessages  int
+	InputTokens    int
+	OutputTokens   int
+	CacheRead      int
+	CacheWrite     int
 	TotalTokens    int
 	ContextTokens  int
 	ContextWindow  int

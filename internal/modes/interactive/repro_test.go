@@ -268,6 +268,27 @@ func TestRenderFileAttachment(t *testing.T) {
 	}
 }
 
+func TestRenderErrorCapitalization(t *testing.T) {
+	m := &model{}
+	m.style = NewStyle(*themes.DarkTheme())
+	m.width = 100
+	m.vp.SetWidth(m.width - borderOffset - chatMargin*2)
+	
+	entry := historyEntry{
+		role: "error",
+		items: []contentItem{
+			{kind: contentItemText, text: "something went wrong"},
+		},
+	}
+	
+	res := renderEntry(entry, m.style, m.width, false)
+	t.Logf("Rendered error:\n%s", res)
+	
+	if !strings.Contains(res, "Something went wrong") {
+		t.Error("Expected error message to be capitalized")
+	}
+}
+
 type reproStubProvider struct{}
 func (s *reproStubProvider) Info() llm.ProviderInfo { return llm.ProviderInfo{Name: "stub"} }
 func (s *reproStubProvider) Stream(ctx context.Context, req *llm.CompletionRequest) (<-chan *llm.Event, error) { return nil, nil }

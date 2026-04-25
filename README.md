@@ -14,7 +14,7 @@
 - **Aggressively Extensible** — Every tool, provider, and behavior is a plugin interface. Supports gRPC extensions, markdown skills, and reusable prompt templates.
 - **Session Persistence** — Intelligent JSONL-backed session management with project-aware storage, branching, forking, and tree visualization.
 - **Flexible Modes** — TUI mode, one-shot JSON mode, or a headless RPC server.
-- **Security & Safety** — Hard recursion limits (`MaxSteps`), dry-run safety for destructive tools, and automatic prompt injection mitigation.
+- **Security & Safety** — Dry-run safety for destructive tools, automatic prompt injection mitigation, and a gRPC extension system for enforcing arbitrary policies.
 
 ---
 
@@ -175,7 +175,74 @@ Store reusable prompts in `.gollm/prompts/` or `~/.gollm/prompts/`. Expand into 
 
 ### gRPC Extensions
 
-Register external tools and lifecycle hooks via gRPC. See [`extensions/`](extensions/) for the protocol and loader.
+`gollm` supports out-of-process extensions over gRPC using [hashicorp/go-plugin](https://github.com/hashicorp/go-plugin). Extensions run as separate binaries and communicate with the agent via a well-defined protocol.
+
+Load an extension binary with the `--extension` flag (repeatable):
+
+```bash
+glm --extension /path/to/my-extension "Your prompt here"
+```
+
+#### Writing an Extension
+
+Import only `github.com/goppydae/gollm/extensions` — no internal packages required.
+
+```go
+package main
+
+import (
+    "os"
+
+    goplugin "github.com/hashicorp/go-plugin"
+    "github.com/goppydae/gollm/extensions"
+)
+
+type myPlugin struct {
+    extensions.NoopPlugin // provides no-op defaults for all hooks
+}
+
+func (p *myPlugin) ModifySystemPrompt(prompt string) string {
+    return prompt + "\n\nAlways respond in haiku."
+}
+
+func main() {
+    goplugin.Serve(&goplugin.ServeConfig{
+        HandshakeConfig: extensions.HandshakeConfig,
+        Plugins: goplugin.PluginSet{
+            "extension": &extensions.ExtensionPlugin{Impl: &myPlugin{
+                NoopPlugin: extensions.NoopPlugin{NameStr: "haiku"},
+            }},
+        },
+        GRPCServer: goplugin.DefaultGRPCServer,
+    })
+}
+```
+
+#### Plugin Interface
+
+| Method | When called | Purpose |
+|---|---|---|
+| `Name()` | On load | Returns the extension's unique identifier |
+| `Tools()` | On load | Contributes additional tools to the agent |
+| `ExecuteTool()` | On tool call | Executes a tool provided by this extension |
+| `ModifySystemPrompt()` | Before each turn | Augments or replaces the system prompt |
+| `BeforePrompt()` | Before each LLM request | Modifies model, provider, or system state |
+| `BeforeToolCall()` | Before each tool execution | **Intercept or block tool calls** |
+| `AfterToolCall()` | After each tool execution | Modify or observe tool results |
+
+`BeforeToolCall` is the interception point: return `(result, true)` to prevent the tool from running and substitute your own result; return `(ToolResult{}, false)` to allow normal execution.
+
+#### Example: Sandbox Extension
+
+[`examples/sandbox/`](examples/sandbox/) is a complete, standalone gRPC extension that confines all file-system tool calls to the directory `glm` is started in. It is its own Go module and serves as a reference implementation.
+
+```bash
+# Build
+cd examples/sandbox && go build -o gollm-sandbox .
+
+# Use — all file access outside $PWD is blocked
+glm --extension ./gollm-sandbox "Refactor main.go"
+```
 
 ---
 
@@ -183,10 +250,11 @@ Register external tools and lifecycle hooks via gRPC. See [`extensions/`](extens
 
 `gollm` is designed to be a safe and predictable assistant:
 
-- **Recursion Limits** — The `maxSteps` setting (default: 10) prevents infinite tool loops that could burn credits or cause local resource exhaustion.
-- **Dry Run Mode** — Use `--dry-run` to see what the agent *would* do without actually modifying files or executing shell commands.
-- **API Key Hygiene** — API keys are masked in CLI output and the `/config` modal to prevent accidental leaks during screen sharing or logging.
-- **Prompt Sanitization** — All user-supplied arguments in prompt templates are wrapped in `<untrusted_input>` tags to mitigate prompt injection attacks.
+- **Dry Run Mode** — Use `--dry-run` to see what the agent *would* do without modifying files or running shell commands.
+- **Bash Deny Patterns** — The `Bash` tool accepts a `DenyPatterns` list; matching commands are rejected before execution.
+- **API Key Hygiene** — API keys are sent via request headers (never embedded in URLs) and masked in the `/config` modal to prevent accidental leaks.
+- **Prompt Sanitization** — User-supplied arguments in prompt templates are wrapped in `<untrusted_input>` tags to mitigate injection attacks.
+- **Extension Sandboxing** — The `BeforeToolCall` hook lets extensions enforce arbitrary path or command policies. See the [sandbox example](examples/sandbox/) for a reference implementation.
 
 ---
 
@@ -228,8 +296,8 @@ Register external tools and lifecycle hooks via gRPC. See [`extensions/`](extens
 --mode               Mode: tui (default), json, rpc
 --no-session         Disable session persistence
 --models             Comma-separated model list for Ctrl+P cycling
---max-steps          Max recursive tool steps (default: 10)
 --dry-run            Enable safety mode for dangerous tools
+--extension / -e     Load a gRPC extension binary (repeatable)
 ```
 
 ---

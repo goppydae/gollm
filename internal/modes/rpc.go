@@ -185,7 +185,7 @@ func (h *RPCHandler) Run(args []string) error {
 			respond(nil)
 
 		case "compact":
-			ag.Compact(20000)
+			ag.Compact(context.Background(), 20000)
 			respond(nil)
 
 		case "bash":

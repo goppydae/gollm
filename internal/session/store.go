@@ -144,22 +144,26 @@ func (s *store) readPath(path string) (*Session, error) {
 		}
 		var r record
 		if err := json.Unmarshal(line, &r); err != nil {
+			if first {
+				return nil, fmt.Errorf("corrupt session header: %w", err)
+			}
 			continue
 		}
 		if first {
 			first = false
-			if r.Kind == "header" {
-				sess.ID = r.ID
-				sess.ParentID = r.ParentID
-				sess.Name = r.Name
-				sess.Model = r.Model
-				sess.Provider = r.Provider
-				sess.Thinking = r.Thinking
-				sess.SystemPrompt = r.System
-				sess.CreatedAt = time.UnixMilli(r.CreatedAt)
-				sess.UpdatedAt = time.UnixMilli(r.UpdatedAt)
-				continue
+			if r.Kind != "header" || r.ID == "" {
+				return nil, fmt.Errorf("corrupt session header: unexpected kind %q or empty ID", r.Kind)
 			}
+			sess.ID = r.ID
+			sess.ParentID = r.ParentID
+			sess.Name = r.Name
+			sess.Model = r.Model
+			sess.Provider = r.Provider
+			sess.Thinking = r.Thinking
+			sess.SystemPrompt = r.System
+			sess.CreatedAt = time.UnixMilli(r.CreatedAt)
+			sess.UpdatedAt = time.UnixMilli(r.UpdatedAt)
+			continue
 		}
 		if r.Kind == "message" && len(r.Raw) > 0 {
 			var msg message

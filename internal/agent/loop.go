@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/goppydae/gollm/internal/llm"
 	"github.com/goppydae/gollm/internal/tools"
@@ -15,19 +16,16 @@ func (a *Agent) runTurn(ctx context.Context) {
 	defer func() {
 		_ = a.lifeState.Transition(StateIdle)
 		a.events.Publish(Event{Type: EventAgentEnd})
-		close(a.done)
+		a.closeDone()
 	}()
 
-	step := 0
 	for {
-		step++
-		if step > a.state.MaxSteps {
-			_ = a.lifeState.Transition(StateError)
-			a.events.Publish(Event{
-				Type:  EventError,
-				Error: fmt.Errorf("maximum recursive steps (%d) exceeded", a.state.MaxSteps),
-			})
+		select {
+		case <-ctx.Done():
 			return
+		case <-a.stop:
+			return
+		default:
 		}
 
 		// 1. Drain queues before next LLM call (or turn completion)
@@ -35,8 +33,26 @@ func (a *Agent) runTurn(ctx context.Context) {
 			continue
 		}
 
+		// 2. Auto-compaction check
+		a.mu.RLock()
+		compEnabled := a.compaction.Enabled
+		compReserve := a.compaction.ReserveTokens
+		compKeep := a.compaction.KeepRecentTokens
+		a.mu.RUnlock()
+
+		if compEnabled {
+			tokens := a.EstimateContextTokens()
+			info := a.provider.Info()
+			if tokens > info.ContextWindow-compReserve {
+				a.Compact(ctx, compKeep)
+				if ctx.Err() != nil {
+					return
+				}
+			}
+		}
+
 		_ = a.lifeState.Transition(StateThinking)
-		
+
 		// Run BeforePrompt extensions
 		a.mu.Lock()
 		for _, ext := range a.extensions {
@@ -57,13 +73,13 @@ func (a *Agent) runTurn(ctx context.Context) {
 
 		a.events.Publish(Event{Type: EventMessageStart})
 
-		content, thinking, llmCalls, ok := a.consumeStream(ctx, stream)
+		content, thinking, llmCalls, usage, ok := a.consumeStream(ctx, stream)
 		if !ok {
 			return
 		}
 
 		// Append assistant message with any tool calls
-		assistantMsg := types.Message{Role: "assistant", Content: content, Thinking: thinking}
+		assistantMsg := types.Message{Role: "assistant", Content: content, Thinking: thinking, Usage: usage}
 		for _, tc := range llmCalls {
 			assistantMsg.ToolCalls = append(assistantMsg.ToolCalls, types.ToolCall{
 				ID:       tc.ID,
@@ -72,6 +88,7 @@ func (a *Agent) runTurn(ctx context.Context) {
 				Position: tc.Position,
 			})
 		}
+		assistantMsg.Timestamp = time.Now()
 		a.mu.Lock()
 		a.state.Messages = append(a.state.Messages, assistantMsg)
 		a.mu.Unlock()
@@ -107,7 +124,7 @@ func (a *Agent) drainQueues() bool {
 	}
 
 	a.events.Publish(Event{Type: EventQueueUpdate})
-	
+
 	// Steer messages take priority
 	msgs := append(steer, followUp...)
 	for _, msg := range msgs {
@@ -117,7 +134,7 @@ func (a *Agent) drainQueues() bool {
 		a.mu.Unlock()
 		a.events.Publish(Event{Type: EventMessageEnd})
 	}
-	
+
 	return true
 }
 
@@ -151,10 +168,11 @@ func (a *Agent) buildRequest() *llm.CompletionRequest {
 
 // consumeStream drains the LLM event stream, publishing agent events and collecting tool calls.
 // Returns (textContent, thinkingContent, toolCalls, ok). ok=false means the turn was aborted or errored.
-func (a *Agent) consumeStream(ctx context.Context, stream <-chan *llm.Event) (string, string, []*llm.ToolCall, bool) {
+func (a *Agent) consumeStream(ctx context.Context, stream <-chan *llm.Event) (string, string, []*llm.ToolCall, *types.Usage, bool) {
 	var sb strings.Builder
 	var thinkingSb strings.Builder
 	var toolCalls []*llm.ToolCall
+	var usage *types.Usage
 	sentEnd := false
 
 	for {
@@ -162,17 +180,17 @@ func (a *Agent) consumeStream(ctx context.Context, stream <-chan *llm.Event) (st
 		case <-a.stop:
 			_ = a.lifeState.Transition(StateAborting)
 			a.events.Publish(Event{Type: EventAbort})
-			return "", "", nil, false
+			return "", "", nil, nil, false
 		case <-ctx.Done():
 			_ = a.lifeState.Transition(StateAborting)
 			a.events.Publish(Event{Type: EventAbort})
-			return "", "", nil, false
+			return "", "", nil, nil, false
 		case ev, ok := <-stream:
 			if !ok {
 				if !sentEnd {
 					a.events.Publish(Event{Type: EventMessageEnd})
 				}
-				return sb.String(), thinkingSb.String(), toolCalls, true
+				return sb.String(), thinkingSb.String(), toolCalls, usage, true
 			}
 			switch ev.Type {
 			case llm.EventTextDelta:
@@ -197,6 +215,7 @@ func (a *Agent) consumeStream(ctx context.Context, stream <-chan *llm.Event) (st
 			case llm.EventMessageEnd:
 				sentEnd = true
 				if ev.Usage != nil {
+					usage = ev.Usage
 					a.events.Publish(Event{Type: EventMessageEnd, Usage: ev.Usage})
 					a.events.Publish(Event{Type: EventTokens, Value: int64(ev.Usage.TotalTokens)})
 				} else {
@@ -205,7 +224,7 @@ func (a *Agent) consumeStream(ctx context.Context, stream <-chan *llm.Event) (st
 			case llm.EventError:
 				_ = a.lifeState.Transition(StateError)
 				a.events.Publish(Event{Type: EventError, Error: ev.Error})
-				return "", "", nil, false
+				return "", "", nil, nil, false
 			}
 		}
 	}
@@ -227,8 +246,22 @@ func (a *Agent) runToolCalls(ctx context.Context, toolCalls []*llm.ToolCall) boo
 		default:
 		}
 
-		result := a.execTool(ctx, tc)
-		
+		// Give extensions a chance to intercept before execution.
+		var result *tools.ToolResult
+		a.mu.Lock()
+		for _, ext := range a.extensions {
+			if r, intercepted := ext.BeforeToolCall(ctx, &types.ToolCall{
+				ID: tc.ID, Name: tc.Name, Args: tc.Args, Position: tc.Position,
+			}, tc.Args); intercepted {
+				result = r
+				break
+			}
+		}
+		a.mu.Unlock()
+		if result == nil {
+			result = a.execTool(ctx, tc)
+		}
+
 		// Run AfterToolCall extensions
 		a.mu.Lock()
 		for _, ext := range a.extensions {
@@ -262,6 +295,7 @@ func (a *Agent) runToolCalls(ctx context.Context, toolCalls []*llm.ToolCall) boo
 			Role:       "tool",
 			Content:    content,
 			ToolCallID: tc.ID,
+			Timestamp:  time.Now(),
 		})
 		a.mu.Unlock()
 	}
@@ -286,8 +320,8 @@ func (a *Agent) execTool(ctx context.Context, tc *llm.ToolCall) *tools.ToolResul
 
 	result, err := tool.Execute(ctx, tc.Args, func(partial *tools.ToolResult) {
 		a.events.Publish(Event{
-			Type:    EventToolDelta,
-			Content: partial.Content,
+			Type:     EventToolDelta,
+			Content:  partial.Content,
 			ToolCall: &types.ToolCall{ID: tc.ID, Name: tc.Name},
 		})
 	})

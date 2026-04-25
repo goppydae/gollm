@@ -30,9 +30,8 @@ var PluginMap = map[string]plugin.Plugin{
 // ExtensionPlugin is the implementation of plugin.Plugin so we can serve/consume this
 // with hashicorp/go-plugin.
 type ExtensionPlugin struct {
-	// Impl is the actual implementation of the Extension interface.
-	// This is only used on the server side (if we wrote a Go extension).
-	Impl agent.Extension
+	// Impl is set only on the server side (inside the plugin binary).
+	Impl Plugin
 }
 
 func (p *ExtensionPlugin) Server(*plugin.MuxBroker) (interface{}, error) {
@@ -52,7 +51,8 @@ func (p *ExtensionPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBro
 	return &GRPCClient{client: proto.NewExtensionClient(c)}, nil
 }
 
-// GRPCClient is an implementation of Extension that talks over RPC.
+// GRPCClient is an implementation of agent.Extension that talks over RPC.
+// It runs on the host side when a plugin binary is loaded.
 type GRPCClient struct {
 	client proto.ExtensionClient
 }
@@ -116,6 +116,30 @@ func (m *GRPCClient) BeforePrompt(ctx context.Context, state *agent.AgentState) 
 	return &newState
 }
 
+func (m *GRPCClient) BeforeToolCall(ctx context.Context, call *agent.ToolCall, args json.RawMessage) (*tools.ToolResult, bool) {
+	argsJSON := ""
+	if args != nil {
+		argsJSON = string(args)
+	}
+	resp, err := m.client.BeforeToolCall(ctx, &proto.BeforeToolCallRequest{
+		Call: &proto.ToolCall{Name: call.Name, ArgumentsJson: argsJSON},
+	})
+	if err != nil {
+		log.Printf("extension BeforeToolCall() RPC error: %v", err)
+		return nil, false
+	}
+	if !resp.Intercepted {
+		return nil, false
+	}
+	if resp.Result == nil {
+		return &tools.ToolResult{}, true
+	}
+	if resp.Result.Error != "" {
+		return &tools.ToolResult{Content: resp.Result.Error, IsError: true}, true
+	}
+	return &tools.ToolResult{Content: resp.Result.Output}, true
+}
+
 func (m *GRPCClient) AfterToolCall(ctx context.Context, call *agent.ToolCall, result *tools.ToolResult) *tools.ToolResult {
 	argsJSON := ""
 	if call.Args != nil {
@@ -168,13 +192,13 @@ type RemoteTool struct {
 	schema      json.RawMessage
 }
 
-func (t *RemoteTool) Name() string             { return t.name }
-func (t *RemoteTool) Description() string      { return t.description }
-func (t *RemoteTool) Schema() json.RawMessage  { return t.schema }
-func (t *RemoteTool) IsReadOnly() bool       { return false }
+func (t *RemoteTool) Name() string            { return t.name }
+func (t *RemoteTool) Description() string     { return t.description }
+func (t *RemoteTool) Schema() json.RawMessage { return t.schema }
+func (t *RemoteTool) IsReadOnly() bool        { return false }
 
 func (t *RemoteTool) Execute(ctx context.Context, args json.RawMessage, update tools.ToolUpdate) (*tools.ToolResult, error) {
-	resp, err := t.client.ExecuteTool(ctx, &proto.ToolCall{
+	resp, err := t.client.ExecuteTool(ctx, &proto.ExecuteToolRequest{
 		Name:          t.name,
 		ArgumentsJson: string(args),
 	})
@@ -182,11 +206,8 @@ func (t *RemoteTool) Execute(ctx context.Context, args json.RawMessage, update t
 		return nil, fmt.Errorf("remote tool %q: %w", t.name, err)
 	}
 	result := &tools.ToolResult{
-		Content: resp.Output,
-		IsError: resp.Error != "",
-	}
-	if result.IsError {
-		result.Content = resp.Error
+		Content: resp.Content,
+		IsError: resp.IsError,
 	}
 	if update != nil {
 		update(result)
@@ -194,53 +215,40 @@ func (t *RemoteTool) Execute(ctx context.Context, args json.RawMessage, update t
 	return result, nil
 }
 
-// GRPCServer is the gRPC server that GRPCClient talks to.
+// GRPCServer is the gRPC server that runs inside the plugin binary.
+// It adapts the Plugin interface to the proto service.
 type GRPCServer struct {
 	proto.UnimplementedExtensionServer
-	Impl agent.Extension
+	Impl Plugin
 }
 
-func (m *GRPCServer) Name(ctx context.Context, req *proto.Empty) (*proto.NameResponse, error) {
+func (m *GRPCServer) Name(ctx context.Context, _ *proto.Empty) (*proto.NameResponse, error) {
 	return &proto.NameResponse{Name: m.Impl.Name()}, nil
 }
 
-func (m *GRPCServer) Tools(ctx context.Context, req *proto.Empty) (*proto.ToolsResponse, error) {
-	implTools := m.Impl.Tools()
-	defs := make([]*proto.ToolDefinition, 0, len(implTools))
-	for _, t := range implTools {
+func (m *GRPCServer) Tools(ctx context.Context, _ *proto.Empty) (*proto.ToolsResponse, error) {
+	var defs []*proto.ToolDefinition
+	for _, td := range m.Impl.Tools() {
 		defs = append(defs, &proto.ToolDefinition{
-			Name:                 t.Name(),
-			Description:          t.Description(),
-			ParametersJsonSchema: string(t.Schema()),
+			Name:                 td.Name,
+			Description:          td.Description,
+			ParametersJsonSchema: string(td.Schema),
 		})
 	}
 	return &proto.ToolsResponse{Tools: defs}, nil
 }
 
-func (m *GRPCServer) ExecuteTool(ctx context.Context, req *proto.ToolCall) (*proto.ToolResult, error) {
-	implTools := m.Impl.Tools()
-	for _, t := range implTools {
-		if t.Name() != req.Name {
-			continue
-		}
-		result, err := t.Execute(ctx, json.RawMessage(req.ArgumentsJson), nil)
-		if err != nil {
-			return &proto.ToolResult{Error: err.Error()}, nil
-		}
-		if result.IsError {
-			return &proto.ToolResult{Error: result.Content}, nil
-		}
-		return &proto.ToolResult{Output: result.Content}, nil
-	}
-	return &proto.ToolResult{Error: fmt.Sprintf("tool %q not found in extension", req.Name)}, nil
+func (m *GRPCServer) ExecuteTool(ctx context.Context, req *proto.ExecuteToolRequest) (*proto.ExecuteToolResponse, error) {
+	result := m.Impl.ExecuteTool(ctx, req.Name, json.RawMessage(req.ArgumentsJson))
+	return &proto.ExecuteToolResponse{Content: result.Content, IsError: result.IsError}, nil
 }
 
 func (m *GRPCServer) BeforePrompt(ctx context.Context, req *proto.BeforePromptRequest) (*proto.BeforePromptResponse, error) {
-	state := &agent.AgentState{
-		SystemPrompt: req.State.Prompt,
-		Model:        req.State.Model,
-		Provider:     req.State.Provider,
-		Thinking:     agent.ThinkingLevel(req.State.ThinkingLevel),
+	state := AgentState{
+		SystemPrompt:  req.State.Prompt,
+		Model:         req.State.Model,
+		Provider:      req.State.Provider,
+		ThinkingLevel: req.State.ThinkingLevel,
 	}
 	modified := m.Impl.BeforePrompt(ctx, state)
 	return &proto.BeforePromptResponse{
@@ -248,7 +256,7 @@ func (m *GRPCServer) BeforePrompt(ctx context.Context, req *proto.BeforePromptRe
 			Prompt:        modified.SystemPrompt,
 			Model:         modified.Model,
 			Provider:      modified.Provider,
-			ThinkingLevel: string(modified.Thinking),
+			ThinkingLevel: modified.ThinkingLevel,
 		},
 	}, nil
 }
@@ -257,16 +265,10 @@ func (m *GRPCServer) AfterToolCall(ctx context.Context, req *proto.AfterToolCall
 	if req.Call == nil || req.Result == nil {
 		return &proto.AfterToolCallResponse{Result: req.Result}, nil
 	}
-	call := &agent.ToolCall{
-		Name: req.Call.Name,
-		Args: json.RawMessage(req.Call.ArgumentsJson),
-	}
-	inResult := &tools.ToolResult{
-		Content: req.Result.Output,
-		IsError: req.Result.Error != "",
-	}
-	if inResult.IsError {
-		inResult.Content = req.Result.Error
+	call := ToolCall{Name: req.Call.Name, Args: json.RawMessage(req.Call.ArgumentsJson)}
+	inResult := ToolResult{Content: req.Result.Output}
+	if req.Result.Error != "" {
+		inResult = ToolResult{Content: req.Result.Error, IsError: true}
 	}
 	out := m.Impl.AfterToolCall(ctx, call, inResult)
 	protoResult := &proto.ToolResult{Output: out.Content}
@@ -277,7 +279,25 @@ func (m *GRPCServer) AfterToolCall(ctx context.Context, req *proto.AfterToolCall
 	return &proto.AfterToolCallResponse{Result: protoResult}, nil
 }
 
+func (m *GRPCServer) BeforeToolCall(ctx context.Context, req *proto.BeforeToolCallRequest) (*proto.BeforeToolCallResponse, error) {
+	if req.Call == nil {
+		return &proto.BeforeToolCallResponse{}, nil
+	}
+	call := ToolCall{Name: req.Call.Name, Args: json.RawMessage(req.Call.ArgumentsJson)}
+	result, intercepted := m.Impl.BeforeToolCall(ctx, call, json.RawMessage(req.Call.ArgumentsJson))
+	if !intercepted {
+		return &proto.BeforeToolCallResponse{Intercepted: false}, nil
+	}
+	protoResult := &proto.ToolResult{Output: result.Content}
+	if result.IsError {
+		protoResult.Error = result.Content
+		protoResult.Output = ""
+	}
+	return &proto.BeforeToolCallResponse{Result: protoResult, Intercepted: true}, nil
+}
+
 func (m *GRPCServer) ModifySystemPrompt(ctx context.Context, req *proto.ModifySystemPromptRequest) (*proto.ModifySystemPromptResponse, error) {
-	modified := m.Impl.ModifySystemPrompt(req.CurrentPrompt)
-	return &proto.ModifySystemPromptResponse{ModifiedPrompt: modified}, nil
+	return &proto.ModifySystemPromptResponse{
+		ModifiedPrompt: m.Impl.ModifySystemPrompt(req.CurrentPrompt),
+	}, nil
 }

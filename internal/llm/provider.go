@@ -89,9 +89,5 @@ type ToolCall struct {
 	Position int             `json:"position,omitempty"`
 }
 
-// Usage tracks token usage.
-type Usage struct {
-	PromptTokens     int `json:"promptTokens"`
-	CompletionTokens int `json:"completionTokens"`
-	TotalTokens      int `json:"totalTokens"`
-}
+// Usage is now in internal/types
+type Usage = types.Usage

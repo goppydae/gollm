@@ -88,9 +88,14 @@ func (m *model) buildChatContent() string {
 		lines = append(lines, renderEntry(e, m.style, chatW, m.toolCallsExpanded))
 	}
 
-	if m.isRunning {
+	isCompacting := m.isCompacting.Load()
+	if m.isRunning || isCompacting {
+		status := "Working..."
+		if isCompacting {
+			status = "Compacting..."
+		}
 		elapsed := m.stopwatch.Elapsed().String()
-		lines = append(lines, m.style.WorkingIndicator().PaddingLeft(1).Render(m.spinner.View()+" Working... "+elapsed))
+		lines = append(lines, m.style.WorkingIndicator().PaddingLeft(1).Render(m.spinner.View()+" "+status+" "+elapsed))
 	}
 
 	return strings.Join(lines, "\n")
@@ -101,14 +106,14 @@ func renderBox(lines []string, chatW, msgW int, boxStyle lipgloss.Style, alignRi
 	for _, line := range lines {
 		out = append(out, boxStyle.MarginBottom(0).Width(msgW).Render(line))
 	}
-	
+
 	// Top and bottom padding
 	blank := boxStyle.MarginBottom(0).Width(msgW).Render("")
-	
+
 	if alignRight {
 		leftPad := chatW - msgW
 		padStr := strings.Repeat(" ", leftPad)
-		
+
 		res := padStr + blank + "\n"
 		for _, line := range out {
 			res += padStr + line + "\n"
@@ -142,12 +147,12 @@ func renderToolCall(tc toolCallEntry, output string, chatW int, s Style, expande
 	}
 
 	boxStyle := lipgloss.NewStyle().Background(bgColor).PaddingLeft(2).PaddingRight(2)
-	
+
 	var rawLines []string
 	icon := "◌"
 	if tc.status == toolCallSuccess { icon = "✓" }
 	if tc.status == toolCallFailure { icon = "✗" }
-	
+
 	header := icon + " " + tc.name
 	if tc.arg != "" { header += " " + tc.arg }
 	rawLines = append(rawLines, s.ToolCall().Bold(true).Background(bgColor).Render(header))
@@ -197,7 +202,7 @@ func renderSkill(name, args, location, content string, chatW int, s Style, expan
 	boxStyle := lipgloss.NewStyle().Background(bgColor).PaddingLeft(2).PaddingRight(2)
 
 	var rawLines []string
-	header := "✦ skill: " + name
+	header := "skill: " + name
 	if args != "" {
 		header += " " + args
 	}
@@ -254,7 +259,8 @@ func renderEntry(e historyEntry, s Style, chatW int, toolCallsExpanded bool) str
 				rendered = wrapAndLeftAlign(item.text, chatW, msgW, s.AssistantBox())
 			case "error", "warning", "info", "success", "system":
 				noticeStyle := s.NoticeBox(e.role).MarginBottom(0)
-				wrapped := lipgloss.Wrap(item.text, chatW-4, "")
+				text := Capitalize(item.text)
+				wrapped := lipgloss.Wrap(text, chatW-4, "")
 				lines := strings.Split(wrapped, "\n")
 				var noticeLines []string
 				for _, line := range lines {
@@ -291,12 +297,17 @@ func renderEntry(e historyEntry, s Style, chatW int, toolCallsExpanded bool) str
 func renderFooter(m *model) string {
 	// Left side
 	leftParts := make([]string, 0, 4)
-	if m.isRunning {
-		leftParts = append(leftParts, m.style.StatusWorking().Render("● running"))
-	} else if m.isCompacting.Load() {
-		leftParts = append(leftParts, m.style.StatusWorking().Render("● compacting"))
+	isCompacting := m.isCompacting.Load()
+	if isCompacting {
+		leftParts = append(leftParts, m.style.StatusWorking().Render("● Compacting"))
+	} else if m.isRunning {
+		leftParts = append(leftParts, m.style.StatusWorking().Render("● Running"))
 	} else {
-		leftParts = append(leftParts, m.style.StatusIdle().Render("idle"))
+		leftParts = append(leftParts, m.style.StatusIdle().Render("Idle"))
+	}
+
+	if m.isRunning || isCompacting {
+		leftParts = append(leftParts, m.stopwatch.View())
 	}
 	leftParts = append(leftParts, m.style.Dim().Render("│ "+m.thinking))
 	leftParts = append(leftParts, m.style.Muted().Render(m.provider+"/"+m.modelName))
@@ -305,12 +316,12 @@ func renderFooter(m *model) string {
 	if m.queuedSteer > 0 || m.queuedFollowUp > 0 {
 		var queueParts []string
 		if m.queuedSteer > 0 {
-			queueParts = append(queueParts, fmt.Sprintf("%d steer", m.queuedSteer))
+			queueParts = append(queueParts, fmt.Sprintf("%d Steer", m.queuedSteer))
 		}
 		if m.queuedFollowUp > 0 {
-			queueParts = append(queueParts, fmt.Sprintf("%d follow-up", m.queuedFollowUp))
+			queueParts = append(queueParts, fmt.Sprintf("%d Follow-up", m.queuedFollowUp))
 		}
-		leftParts = append(leftParts, m.style.Dim().Render("│ queued: "+strings.Join(queueParts, ", ")))
+		leftParts = append(leftParts, m.style.Dim().Render("│ Queued: "+strings.Join(queueParts, ", ")))
 	}
 
 	left := strings.Join(leftParts, " ")

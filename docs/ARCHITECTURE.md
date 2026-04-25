@@ -49,9 +49,9 @@ gollm/
           │  └────────────┬────────────┘│
           │               │             │
           │  ┌────────────▼────────────┐│
-          │  │    runTurn (loop.go)    ││  ←──── drains queues, calls LLM,
-          │  │  provider.Stream()      ││         executes tools, loops
-          │  │  consumeStream()        ││
+          │  │    runTurn (loop.go)    ││  ←──── drains queues, handles compaction,
+          │  │  provider.Stream()      ││         execs extensions, calls LLM,
+          │  │  consumeStream()           ││         executes tools, loops
           │  │  execTools()            ││
           │  └────────────┬────────────┘│
           │               │ publishes   │
@@ -101,6 +101,8 @@ The agent transitions through explicit states to prevent concurrent modification
 Idle → Thinking → Executing → Idle
            ↓
        Compacting → Idle
+           ↓
+         Aborting → Idle
            ↓
          Error
 ```
@@ -249,7 +251,9 @@ Extensions implement the `agent.Extension` interface:
 
 ```go
 type Extension interface {
+    ModifySystemPrompt(ctx context.Context, state *AgentState) *AgentState
     BeforePrompt(ctx context.Context, state *AgentState) *AgentState
+    AfterToolCall(ctx context.Context, state *AgentState) *AgentState
     Tools() []tools.Tool
 }
 ```

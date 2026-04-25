@@ -77,8 +77,7 @@ func rootCmd() *cobra.Command {
 		listModels  string
 		showVersion bool
 		// Safety flags
-		maxSteps int
-		dryRun   bool
+		dryRun bool
 	)
 
 	cmd := &cobra.Command{
@@ -178,9 +177,6 @@ func rootCmd() *cobra.Command {
 			}
 			cfg.Verbose = verbose
 			cfg.Offline = offline
-			if cmd.Flags().Changed("max-steps") {
-				cfg.MaxSteps = maxSteps
-			}
 			if cmd.Flags().Changed("dry-run") {
 				cfg.DryRun = dryRun
 			}
@@ -360,7 +356,6 @@ func rootCmd() *cobra.Command {
 	// Tools
 	cmd.Flags().BoolVar(&noTools, "no-tools", false, "Disable all built-in tools")
 	cmd.Flags().StringVar(&toolsList, "tools", "", "Comma-separated tools to enable (read,bash,edit,write,grep,find,ls)")
-	cmd.Flags().IntVar(&maxSteps, "max-steps", 10, "Maximum number of recursive tool calls per turn")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Dry run mode: tools don't perform destructive actions")
 
 	// Extensions / skills / prompts

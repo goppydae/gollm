@@ -1,6 +1,7 @@
 package interactive
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -25,12 +26,15 @@ func Run(provider llm.Provider, registry *tools.ToolRegistry, mgr *session.Manag
 	ag := agent.New(provider, registry)
 	ag.SetThinkingLevel(agent.ThinkingLevel(cfg.ThinkingLevel))
 	ag.SetExtensions(exts)
+	ag.SetCompactionConfig(cfg.Compaction.Enabled, cfg.Compaction.ReserveTokens, cfg.Compaction.KeepRecentTokens)
+	ag.SetDryRun(cfg.DryRun)
 
 	// Pre-load session if requested
 	if cfg.SessionPath != "" {
 		opts.PreloadSession = cfg.SessionPath
 	}
 
+	var resumeInfo string
 	if !opts.NoSession {
 		var sess *session.Session
 		var err error
@@ -48,10 +52,15 @@ func Run(provider llm.Provider, registry *tools.ToolRegistry, mgr *session.Manag
 			if lerr == nil && len(list) > 0 {
 				id := list[len(list)-1]
 				sess, err = mgr.Load(id)
-				if err != nil {
-					// Fallback to absolute path if ID lookup failed (shouldn't happen with the new list logic)
+				if err == nil {
+					resumeInfo = fmt.Sprintf("Resumed session: %s (%d messages)", sess.ID, len(sess.Messages))
+				} else {
+					// Fallback to absolute path if ID lookup failed
 					if abs, err2 := filepath.Abs(id); err2 == nil {
 						sess, err = mgr.Load(abs)
+						if err == nil {
+							resumeInfo = fmt.Sprintf("Resumed session: %s (%d messages)", sess.ID, len(sess.Messages))
+						}
 					}
 				}
 			}
@@ -61,13 +70,20 @@ func Run(provider llm.Provider, registry *tools.ToolRegistry, mgr *session.Manag
 		case strings.HasPrefix(opts.PreloadSession, "resume:"):
 			id := strings.TrimPrefix(opts.PreloadSession, "resume:")
 			sess, err = mgr.Load(id)
+			if err == nil {
+				resumeInfo = fmt.Sprintf("Resumed session: %s (%d messages)", sess.ID, len(sess.Messages))
+			}
 		case opts.PreloadSession == "resume":
-			// We'll open the picker in the TUI, but we need a session to start with
 			sess, err = mgr.Create()
 		case opts.PreloadSession != "":
 			sess, err = mgr.Load(opts.PreloadSession)
-			if err != nil {
+			if err == nil {
+				resumeInfo = fmt.Sprintf("Resumed session: %s (%d messages)", sess.ID, len(sess.Messages))
+			} else {
 				sess, err = mgr.LoadPath(opts.PreloadSession)
+				if err == nil {
+					resumeInfo = fmt.Sprintf("Resumed session: %s (%d messages)", sess.ID, len(sess.Messages))
+				}
 			}
 		default:
 			sess, err = mgr.Create()
@@ -87,7 +103,12 @@ func Run(provider llm.Provider, registry *tools.ToolRegistry, mgr *session.Manag
 
 	eventCh := make(chan agent.Event, 1024)
 	ag.Subscribe(func(ev agent.Event) {
-		eventCh <- ev
+		select {
+		case eventCh <- ev:
+		default:
+			// Drop rather than spawn a goroutine that could leak if the TUI exits
+			// while the send is blocked. The 1024-slot buffer handles normal bursts.
+		}
 	})
 
 	initialInput := ""
@@ -100,11 +121,19 @@ func Run(provider llm.Provider, registry *tools.ToolRegistry, mgr *session.Manag
 	m := newModel(info.Model, info.Name, string(cfg.ThinkingLevel), info.ContextWindow, ag, eventCh, mgr, cfg, initialInput)
 	m.style = themes.NewStyle(*theme)
 	m.syncHistoryFromAgent()
+	if resumeInfo != "" {
+		m.history = append(m.history, historyEntry{
+			role:  "info",
+			items: []contentItem{{kind: contentItemText, text: resumeInfo}},
+		})
+	}
 	m.models = cfg.Models
 	m.modelIndex = 0
 
 	p := tea.NewProgram(m)
 	_, err := p.Run()
+	m.cancel() // Cancel any in-flight agent context on all exit paths.
+	_ = m.saveSession() // Final save on clean exit
 	return err
 }
 

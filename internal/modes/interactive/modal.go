@@ -136,9 +136,9 @@ func (m *modalState) openConfigModal(model, provider, thinking, theme, mode stri
 
 	sb.WriteString(header.Render("Context Compaction"))
 	sb.WriteString("\n\n")
-	compState := "disabled"
+	compState := "Disabled"
 	if compactionEnabled {
-		compState = "enabled"
+		compState = "Enabled"
 	}
 	addKV("Status:", compState)
 	addKV("Reserve Tokens:", strconv.Itoa(reserveTokens))
@@ -358,7 +358,7 @@ func (m *modalState) refreshTreeContent(currentID string, style Style) {
 		// First message snippet
 		firstMsg := strings.ReplaceAll(strings.TrimSpace(n.Node.FirstMessage), "\n", " ")
 		if firstMsg == "" {
-			firstMsg = "(empty)"
+			firstMsg = "(Empty)"
 		}
 
 		// Column 1: Cursor + Tree + Active + Label (Fixed 55 chars)

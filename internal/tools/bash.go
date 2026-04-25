@@ -12,11 +12,19 @@ import (
 )
 
 // Bash is a tool for executing shell commands.
+//
+// Security note: commands are executed as-is via `bash -c`. The subprocess
+// inherits the process environment (including API keys). Configure DenyPatterns
+// to block known-dangerous patterns; leave nil/empty for no restrictions.
 type Bash struct {
 	// Cwd is the working directory for commands.
 	Cwd string
 	// Timeout for command execution.
 	Timeout time.Duration
+	// DenyPatterns is an optional list of substrings that, if found in the
+	// command, will cause execution to be rejected. Checked case-insensitively.
+	// Example: []string{"rm -rf /", "dd if=", "> /dev/sd"}
+	DenyPatterns []string
 }
 
 func (Bash) Name() string { return "bash" }
@@ -58,6 +66,16 @@ func (t Bash) Execute(ctx context.Context, args json.RawMessage, update ToolUpda
 
 	if params.Command == "" {
 		return nil, fmt.Errorf("command is required")
+	}
+
+	cmdLower := strings.ToLower(params.Command)
+	for _, pattern := range t.DenyPatterns {
+		if strings.Contains(cmdLower, strings.ToLower(pattern)) {
+			return &ToolResult{
+				Content: fmt.Sprintf("command blocked: matches denied pattern %q", pattern),
+				IsError: true,
+			}, nil
+		}
 	}
 
 	cwd := params.Cwd

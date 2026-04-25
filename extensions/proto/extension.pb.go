@@ -205,6 +205,110 @@ func (x *ToolsResponse) GetTools() []*ToolDefinition {
 	return nil
 }
 
+type ExecuteToolRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	ArgumentsJson string                 `protobuf:"bytes,2,opt,name=arguments_json,json=argumentsJson,proto3" json:"arguments_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExecuteToolRequest) Reset() {
+	*x = ExecuteToolRequest{}
+	mi := &file_extensions_proto_extension_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecuteToolRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecuteToolRequest) ProtoMessage() {}
+
+func (x *ExecuteToolRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_extensions_proto_extension_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecuteToolRequest.ProtoReflect.Descriptor instead.
+func (*ExecuteToolRequest) Descriptor() ([]byte, []int) {
+	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ExecuteToolRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ExecuteToolRequest) GetArgumentsJson() string {
+	if x != nil {
+		return x.ArgumentsJson
+	}
+	return ""
+}
+
+type ExecuteToolResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Content       string                 `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
+	IsError       bool                   `protobuf:"varint,2,opt,name=is_error,json=isError,proto3" json:"is_error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExecuteToolResponse) Reset() {
+	*x = ExecuteToolResponse{}
+	mi := &file_extensions_proto_extension_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecuteToolResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecuteToolResponse) ProtoMessage() {}
+
+func (x *ExecuteToolResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_extensions_proto_extension_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecuteToolResponse.ProtoReflect.Descriptor instead.
+func (*ExecuteToolResponse) Descriptor() ([]byte, []int) {
+	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ExecuteToolResponse) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *ExecuteToolResponse) GetIsError() bool {
+	if x != nil {
+		return x.IsError
+	}
+	return false
+}
+
 // Represents the state passed to BeforePrompt
 type AgentState struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -218,7 +322,7 @@ type AgentState struct {
 
 func (x *AgentState) Reset() {
 	*x = AgentState{}
-	mi := &file_extensions_proto_extension_proto_msgTypes[4]
+	mi := &file_extensions_proto_extension_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -230,7 +334,7 @@ func (x *AgentState) String() string {
 func (*AgentState) ProtoMessage() {}
 
 func (x *AgentState) ProtoReflect() protoreflect.Message {
-	mi := &file_extensions_proto_extension_proto_msgTypes[4]
+	mi := &file_extensions_proto_extension_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -243,7 +347,7 @@ func (x *AgentState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentState.ProtoReflect.Descriptor instead.
 func (*AgentState) Descriptor() ([]byte, []int) {
-	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{4}
+	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *AgentState) GetPrompt() string {
@@ -283,7 +387,7 @@ type BeforePromptRequest struct {
 
 func (x *BeforePromptRequest) Reset() {
 	*x = BeforePromptRequest{}
-	mi := &file_extensions_proto_extension_proto_msgTypes[5]
+	mi := &file_extensions_proto_extension_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -295,7 +399,7 @@ func (x *BeforePromptRequest) String() string {
 func (*BeforePromptRequest) ProtoMessage() {}
 
 func (x *BeforePromptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_extensions_proto_extension_proto_msgTypes[5]
+	mi := &file_extensions_proto_extension_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -308,7 +412,7 @@ func (x *BeforePromptRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BeforePromptRequest.ProtoReflect.Descriptor instead.
 func (*BeforePromptRequest) Descriptor() ([]byte, []int) {
-	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{5}
+	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *BeforePromptRequest) GetState() *AgentState {
@@ -327,7 +431,7 @@ type BeforePromptResponse struct {
 
 func (x *BeforePromptResponse) Reset() {
 	*x = BeforePromptResponse{}
-	mi := &file_extensions_proto_extension_proto_msgTypes[6]
+	mi := &file_extensions_proto_extension_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -339,7 +443,7 @@ func (x *BeforePromptResponse) String() string {
 func (*BeforePromptResponse) ProtoMessage() {}
 
 func (x *BeforePromptResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_extensions_proto_extension_proto_msgTypes[6]
+	mi := &file_extensions_proto_extension_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -352,7 +456,7 @@ func (x *BeforePromptResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BeforePromptResponse.ProtoReflect.Descriptor instead.
 func (*BeforePromptResponse) Descriptor() ([]byte, []int) {
-	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{6}
+	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *BeforePromptResponse) GetState() *AgentState {
@@ -372,7 +476,7 @@ type ToolCall struct {
 
 func (x *ToolCall) Reset() {
 	*x = ToolCall{}
-	mi := &file_extensions_proto_extension_proto_msgTypes[7]
+	mi := &file_extensions_proto_extension_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -384,7 +488,7 @@ func (x *ToolCall) String() string {
 func (*ToolCall) ProtoMessage() {}
 
 func (x *ToolCall) ProtoReflect() protoreflect.Message {
-	mi := &file_extensions_proto_extension_proto_msgTypes[7]
+	mi := &file_extensions_proto_extension_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -397,7 +501,7 @@ func (x *ToolCall) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolCall.ProtoReflect.Descriptor instead.
 func (*ToolCall) Descriptor() ([]byte, []int) {
-	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{7}
+	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ToolCall) GetName() string {
@@ -424,7 +528,7 @@ type ToolResult struct {
 
 func (x *ToolResult) Reset() {
 	*x = ToolResult{}
-	mi := &file_extensions_proto_extension_proto_msgTypes[8]
+	mi := &file_extensions_proto_extension_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -436,7 +540,7 @@ func (x *ToolResult) String() string {
 func (*ToolResult) ProtoMessage() {}
 
 func (x *ToolResult) ProtoReflect() protoreflect.Message {
-	mi := &file_extensions_proto_extension_proto_msgTypes[8]
+	mi := &file_extensions_proto_extension_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -449,7 +553,7 @@ func (x *ToolResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolResult.ProtoReflect.Descriptor instead.
 func (*ToolResult) Descriptor() ([]byte, []int) {
-	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{8}
+	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ToolResult) GetOutput() string {
@@ -476,7 +580,7 @@ type AfterToolCallRequest struct {
 
 func (x *AfterToolCallRequest) Reset() {
 	*x = AfterToolCallRequest{}
-	mi := &file_extensions_proto_extension_proto_msgTypes[9]
+	mi := &file_extensions_proto_extension_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -488,7 +592,7 @@ func (x *AfterToolCallRequest) String() string {
 func (*AfterToolCallRequest) ProtoMessage() {}
 
 func (x *AfterToolCallRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_extensions_proto_extension_proto_msgTypes[9]
+	mi := &file_extensions_proto_extension_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -501,7 +605,7 @@ func (x *AfterToolCallRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AfterToolCallRequest.ProtoReflect.Descriptor instead.
 func (*AfterToolCallRequest) Descriptor() ([]byte, []int) {
-	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{9}
+	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *AfterToolCallRequest) GetCall() *ToolCall {
@@ -527,7 +631,7 @@ type AfterToolCallResponse struct {
 
 func (x *AfterToolCallResponse) Reset() {
 	*x = AfterToolCallResponse{}
-	mi := &file_extensions_proto_extension_proto_msgTypes[10]
+	mi := &file_extensions_proto_extension_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -539,7 +643,7 @@ func (x *AfterToolCallResponse) String() string {
 func (*AfterToolCallResponse) ProtoMessage() {}
 
 func (x *AfterToolCallResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_extensions_proto_extension_proto_msgTypes[10]
+	mi := &file_extensions_proto_extension_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -552,7 +656,7 @@ func (x *AfterToolCallResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AfterToolCallResponse.ProtoReflect.Descriptor instead.
 func (*AfterToolCallResponse) Descriptor() ([]byte, []int) {
-	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{10}
+	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *AfterToolCallResponse) GetResult() *ToolResult {
@@ -560,6 +664,102 @@ func (x *AfterToolCallResponse) GetResult() *ToolResult {
 		return x.Result
 	}
 	return nil
+}
+
+type BeforeToolCallRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Call          *ToolCall              `protobuf:"bytes,1,opt,name=call,proto3" json:"call,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BeforeToolCallRequest) Reset() {
+	*x = BeforeToolCallRequest{}
+	mi := &file_extensions_proto_extension_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BeforeToolCallRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BeforeToolCallRequest) ProtoMessage() {}
+
+func (x *BeforeToolCallRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_extensions_proto_extension_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BeforeToolCallRequest.ProtoReflect.Descriptor instead.
+func (*BeforeToolCallRequest) Descriptor() ([]byte, []int) {
+	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *BeforeToolCallRequest) GetCall() *ToolCall {
+	if x != nil {
+		return x.Call
+	}
+	return nil
+}
+
+type BeforeToolCallResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Result        *ToolResult            `protobuf:"bytes,1,opt,name=result,proto3" json:"result,omitempty"`
+	Intercepted   bool                   `protobuf:"varint,2,opt,name=intercepted,proto3" json:"intercepted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BeforeToolCallResponse) Reset() {
+	*x = BeforeToolCallResponse{}
+	mi := &file_extensions_proto_extension_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BeforeToolCallResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BeforeToolCallResponse) ProtoMessage() {}
+
+func (x *BeforeToolCallResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_extensions_proto_extension_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BeforeToolCallResponse.ProtoReflect.Descriptor instead.
+func (*BeforeToolCallResponse) Descriptor() ([]byte, []int) {
+	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *BeforeToolCallResponse) GetResult() *ToolResult {
+	if x != nil {
+		return x.Result
+	}
+	return nil
+}
+
+func (x *BeforeToolCallResponse) GetIntercepted() bool {
+	if x != nil {
+		return x.Intercepted
+	}
+	return false
 }
 
 type ModifySystemPromptRequest struct {
@@ -571,7 +771,7 @@ type ModifySystemPromptRequest struct {
 
 func (x *ModifySystemPromptRequest) Reset() {
 	*x = ModifySystemPromptRequest{}
-	mi := &file_extensions_proto_extension_proto_msgTypes[11]
+	mi := &file_extensions_proto_extension_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -583,7 +783,7 @@ func (x *ModifySystemPromptRequest) String() string {
 func (*ModifySystemPromptRequest) ProtoMessage() {}
 
 func (x *ModifySystemPromptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_extensions_proto_extension_proto_msgTypes[11]
+	mi := &file_extensions_proto_extension_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -596,7 +796,7 @@ func (x *ModifySystemPromptRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModifySystemPromptRequest.ProtoReflect.Descriptor instead.
 func (*ModifySystemPromptRequest) Descriptor() ([]byte, []int) {
-	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{11}
+	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ModifySystemPromptRequest) GetCurrentPrompt() string {
@@ -615,7 +815,7 @@ type ModifySystemPromptResponse struct {
 
 func (x *ModifySystemPromptResponse) Reset() {
 	*x = ModifySystemPromptResponse{}
-	mi := &file_extensions_proto_extension_proto_msgTypes[12]
+	mi := &file_extensions_proto_extension_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -627,7 +827,7 @@ func (x *ModifySystemPromptResponse) String() string {
 func (*ModifySystemPromptResponse) ProtoMessage() {}
 
 func (x *ModifySystemPromptResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_extensions_proto_extension_proto_msgTypes[12]
+	mi := &file_extensions_proto_extension_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -640,7 +840,7 @@ func (x *ModifySystemPromptResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModifySystemPromptResponse.ProtoReflect.Descriptor instead.
 func (*ModifySystemPromptResponse) Descriptor() ([]byte, []int) {
-	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{12}
+	return file_extensions_proto_extension_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ModifySystemPromptResponse) GetModifiedPrompt() string {
@@ -663,10 +863,19 @@ const file_extensions_proto_extension_proto_rawDesc = "" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x124\n" +
 	"\x16parameters_json_schema\x18\x03 \x01(\tR\x14parametersJsonSchema\"<\n" +
 	"\rToolsResponse\x12+\n" +
-	"\x05tools\x18\x01 \x03(\v2\x15.proto.ToolDefinitionR\x05tools\"$\n" +
+	"\x05tools\x18\x01 \x03(\v2\x15.proto.ToolDefinitionR\x05tools\"O\n" +
+	"\x12ExecuteToolRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12%\n" +
+	"\x0earguments_json\x18\x02 \x01(\tR\rargumentsJson\"J\n" +
+	"\x13ExecuteToolResponse\x12\x18\n" +
+	"\acontent\x18\x01 \x01(\tR\acontent\x12\x19\n" +
+	"\bis_error\x18\x02 \x01(\bR\aisError\"}\n" +
 	"\n" +
 	"AgentState\x12\x16\n" +
-	"\x06prompt\x18\x01 \x01(\tR\x06prompt\">\n" +
+	"\x06prompt\x18\x01 \x01(\tR\x06prompt\x12\x14\n" +
+	"\x05model\x18\x02 \x01(\tR\x05model\x12\x1a\n" +
+	"\bprovider\x18\x03 \x01(\tR\bprovider\x12%\n" +
+	"\x0ethinking_level\x18\x04 \x01(\tR\rthinkingLevel\">\n" +
 	"\x13BeforePromptRequest\x12'\n" +
 	"\x05state\x18\x01 \x01(\v2\x11.proto.AgentStateR\x05state\"?\n" +
 	"\x14BeforePromptResponse\x12'\n" +
@@ -682,17 +891,24 @@ const file_extensions_proto_extension_proto_rawDesc = "" +
 	"\x04call\x18\x01 \x01(\v2\x0f.proto.ToolCallR\x04call\x12)\n" +
 	"\x06result\x18\x02 \x01(\v2\x11.proto.ToolResultR\x06result\"B\n" +
 	"\x15AfterToolCallResponse\x12)\n" +
-	"\x06result\x18\x01 \x01(\v2\x11.proto.ToolResultR\x06result\"B\n" +
+	"\x06result\x18\x01 \x01(\v2\x11.proto.ToolResultR\x06result\"<\n" +
+	"\x15BeforeToolCallRequest\x12#\n" +
+	"\x04call\x18\x01 \x01(\v2\x0f.proto.ToolCallR\x04call\"e\n" +
+	"\x16BeforeToolCallResponse\x12)\n" +
+	"\x06result\x18\x01 \x01(\v2\x11.proto.ToolResultR\x06result\x12 \n" +
+	"\vintercepted\x18\x02 \x01(\bR\vintercepted\"B\n" +
 	"\x19ModifySystemPromptRequest\x12%\n" +
 	"\x0ecurrent_prompt\x18\x01 \x01(\tR\rcurrentPrompt\"E\n" +
 	"\x1aModifySystemPromptResponse\x12'\n" +
-	"\x0fmodified_prompt\x18\x01 \x01(\tR\x0emodifiedPrompt2\xd3\x02\n" +
+	"\x0fmodified_prompt\x18\x01 \x01(\tR\x0emodifiedPrompt2\xe8\x03\n" +
 	"\tExtension\x12)\n" +
 	"\x04Name\x12\f.proto.Empty\x1a\x13.proto.NameResponse\x12+\n" +
-	"\x05Tools\x12\f.proto.Empty\x1a\x14.proto.ToolsResponse\x12G\n" +
+	"\x05Tools\x12\f.proto.Empty\x1a\x14.proto.ToolsResponse\x12D\n" +
+	"\vExecuteTool\x12\x19.proto.ExecuteToolRequest\x1a\x1a.proto.ExecuteToolResponse\x12G\n" +
 	"\fBeforePrompt\x12\x1a.proto.BeforePromptRequest\x1a\x1b.proto.BeforePromptResponse\x12J\n" +
-	"\rAfterToolCall\x12\x1b.proto.AfterToolCallRequest\x1a\x1c.proto.AfterToolCallResponse\x12Y\n" +
-	"\x12ModifySystemPrompt\x12 .proto.ModifySystemPromptRequest\x1a!.proto.ModifySystemPromptResponseB\x18Z\x16gollm/extensions/protob\x06proto3"
+	"\rAfterToolCall\x12\x1b.proto.AfterToolCallRequest\x1a\x1c.proto.AfterToolCallResponse\x12M\n" +
+	"\x0eBeforeToolCall\x12\x1c.proto.BeforeToolCallRequest\x1a\x1d.proto.BeforeToolCallResponse\x12Y\n" +
+	"\x12ModifySystemPrompt\x12 .proto.ModifySystemPromptRequest\x1a!.proto.ModifySystemPromptResponseB,Z*github.com/goppydae/gollm/extensions/protob\x06proto3"
 
 var (
 	file_extensions_proto_extension_proto_rawDescOnce sync.Once
@@ -706,44 +922,54 @@ func file_extensions_proto_extension_proto_rawDescGZIP() []byte {
 	return file_extensions_proto_extension_proto_rawDescData
 }
 
-var file_extensions_proto_extension_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_extensions_proto_extension_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_extensions_proto_extension_proto_goTypes = []any{
 	(*Empty)(nil),                      // 0: proto.Empty
 	(*NameResponse)(nil),               // 1: proto.NameResponse
 	(*ToolDefinition)(nil),             // 2: proto.ToolDefinition
 	(*ToolsResponse)(nil),              // 3: proto.ToolsResponse
-	(*AgentState)(nil),                 // 4: proto.AgentState
-	(*BeforePromptRequest)(nil),        // 5: proto.BeforePromptRequest
-	(*BeforePromptResponse)(nil),       // 6: proto.BeforePromptResponse
-	(*ToolCall)(nil),                   // 7: proto.ToolCall
-	(*ToolResult)(nil),                 // 8: proto.ToolResult
-	(*AfterToolCallRequest)(nil),       // 9: proto.AfterToolCallRequest
-	(*AfterToolCallResponse)(nil),      // 10: proto.AfterToolCallResponse
-	(*ModifySystemPromptRequest)(nil),  // 11: proto.ModifySystemPromptRequest
-	(*ModifySystemPromptResponse)(nil), // 12: proto.ModifySystemPromptResponse
+	(*ExecuteToolRequest)(nil),         // 4: proto.ExecuteToolRequest
+	(*ExecuteToolResponse)(nil),        // 5: proto.ExecuteToolResponse
+	(*AgentState)(nil),                 // 6: proto.AgentState
+	(*BeforePromptRequest)(nil),        // 7: proto.BeforePromptRequest
+	(*BeforePromptResponse)(nil),       // 8: proto.BeforePromptResponse
+	(*ToolCall)(nil),                   // 9: proto.ToolCall
+	(*ToolResult)(nil),                 // 10: proto.ToolResult
+	(*AfterToolCallRequest)(nil),       // 11: proto.AfterToolCallRequest
+	(*AfterToolCallResponse)(nil),      // 12: proto.AfterToolCallResponse
+	(*BeforeToolCallRequest)(nil),      // 13: proto.BeforeToolCallRequest
+	(*BeforeToolCallResponse)(nil),     // 14: proto.BeforeToolCallResponse
+	(*ModifySystemPromptRequest)(nil),  // 15: proto.ModifySystemPromptRequest
+	(*ModifySystemPromptResponse)(nil), // 16: proto.ModifySystemPromptResponse
 }
 var file_extensions_proto_extension_proto_depIdxs = []int32{
 	2,  // 0: proto.ToolsResponse.tools:type_name -> proto.ToolDefinition
-	4,  // 1: proto.BeforePromptRequest.state:type_name -> proto.AgentState
-	4,  // 2: proto.BeforePromptResponse.state:type_name -> proto.AgentState
-	7,  // 3: proto.AfterToolCallRequest.call:type_name -> proto.ToolCall
-	8,  // 4: proto.AfterToolCallRequest.result:type_name -> proto.ToolResult
-	8,  // 5: proto.AfterToolCallResponse.result:type_name -> proto.ToolResult
-	0,  // 6: proto.Extension.Name:input_type -> proto.Empty
-	0,  // 7: proto.Extension.Tools:input_type -> proto.Empty
-	5,  // 8: proto.Extension.BeforePrompt:input_type -> proto.BeforePromptRequest
-	9,  // 9: proto.Extension.AfterToolCall:input_type -> proto.AfterToolCallRequest
-	11, // 10: proto.Extension.ModifySystemPrompt:input_type -> proto.ModifySystemPromptRequest
-	1,  // 11: proto.Extension.Name:output_type -> proto.NameResponse
-	3,  // 12: proto.Extension.Tools:output_type -> proto.ToolsResponse
-	6,  // 13: proto.Extension.BeforePrompt:output_type -> proto.BeforePromptResponse
-	10, // 14: proto.Extension.AfterToolCall:output_type -> proto.AfterToolCallResponse
-	12, // 15: proto.Extension.ModifySystemPrompt:output_type -> proto.ModifySystemPromptResponse
-	11, // [11:16] is the sub-list for method output_type
-	6,  // [6:11] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	6,  // 1: proto.BeforePromptRequest.state:type_name -> proto.AgentState
+	6,  // 2: proto.BeforePromptResponse.state:type_name -> proto.AgentState
+	9,  // 3: proto.AfterToolCallRequest.call:type_name -> proto.ToolCall
+	10, // 4: proto.AfterToolCallRequest.result:type_name -> proto.ToolResult
+	10, // 5: proto.AfterToolCallResponse.result:type_name -> proto.ToolResult
+	9,  // 6: proto.BeforeToolCallRequest.call:type_name -> proto.ToolCall
+	10, // 7: proto.BeforeToolCallResponse.result:type_name -> proto.ToolResult
+	0,  // 8: proto.Extension.Name:input_type -> proto.Empty
+	0,  // 9: proto.Extension.Tools:input_type -> proto.Empty
+	4,  // 10: proto.Extension.ExecuteTool:input_type -> proto.ExecuteToolRequest
+	7,  // 11: proto.Extension.BeforePrompt:input_type -> proto.BeforePromptRequest
+	11, // 12: proto.Extension.AfterToolCall:input_type -> proto.AfterToolCallRequest
+	13, // 13: proto.Extension.BeforeToolCall:input_type -> proto.BeforeToolCallRequest
+	15, // 14: proto.Extension.ModifySystemPrompt:input_type -> proto.ModifySystemPromptRequest
+	1,  // 15: proto.Extension.Name:output_type -> proto.NameResponse
+	3,  // 16: proto.Extension.Tools:output_type -> proto.ToolsResponse
+	5,  // 17: proto.Extension.ExecuteTool:output_type -> proto.ExecuteToolResponse
+	8,  // 18: proto.Extension.BeforePrompt:output_type -> proto.BeforePromptResponse
+	12, // 19: proto.Extension.AfterToolCall:output_type -> proto.AfterToolCallResponse
+	14, // 20: proto.Extension.BeforeToolCall:output_type -> proto.BeforeToolCallResponse
+	16, // 21: proto.Extension.ModifySystemPrompt:output_type -> proto.ModifySystemPromptResponse
+	15, // [15:22] is the sub-list for method output_type
+	8,  // [8:15] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_extensions_proto_extension_proto_init() }
@@ -757,7 +983,7 @@ func file_extensions_proto_extension_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_extensions_proto_extension_proto_rawDesc), len(file_extensions_proto_extension_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -309,6 +309,13 @@ func convertMessagesForAnthropic(messages []types.Message) []map[string]any {
 				"role":    "user",
 				"content": results,
 			})
+		case "success":
+			// Compaction summary — surface as a user turn so the model receives it.
+			out = append(out, map[string]any{
+				"role":    "user",
+				"content": "[Context Summary]\n" + m.Content,
+			})
+			i++
 		default:
 			i++
 		}

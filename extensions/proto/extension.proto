@@ -10,6 +10,7 @@ service Extension {
   rpc ExecuteTool(ExecuteToolRequest) returns (ExecuteToolResponse);
   rpc BeforePrompt(BeforePromptRequest) returns (BeforePromptResponse);
   rpc AfterToolCall(AfterToolCallRequest) returns (AfterToolCallResponse);
+  rpc BeforeToolCall(BeforeToolCallRequest) returns (BeforeToolCallResponse);
   rpc ModifySystemPrompt(ModifySystemPromptRequest) returns (ModifySystemPromptResponse);
 }
 
@@ -72,6 +73,15 @@ message AfterToolCallRequest {
 
 message AfterToolCallResponse {
   ToolResult result = 1;
+}
+
+message BeforeToolCallRequest {
+  ToolCall call = 1;
+}
+
+message BeforeToolCallResponse {
+  ToolResult result = 1;
+  bool intercepted = 2;
 }
 
 message ModifySystemPromptRequest {

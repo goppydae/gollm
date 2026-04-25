@@ -26,6 +26,8 @@ type Message struct {
 	Images     []Image    `json:"images,omitempty"`
 	ToolCalls  []ToolCall `json:"toolCalls,omitempty"`
 	ToolCallID string     `json:"toolCallId,omitempty"` // set on role="tool" messages
+	Timestamp  time.Time  `json:"timestamp,omitempty"`
+	Usage      *Usage     `json:"usage,omitempty"`
 }
 
 // Image represents an image attachment.
@@ -73,4 +75,11 @@ type Session struct {
 	MaxTokens  int             `json:"maxTokens,omitempty"`
 	Temperature float64        `json:"temperature,omitempty"`
 	IsRunning  bool            `json:"isRunning"`
+}
+
+// Usage tracks token usage.
+type Usage struct {
+	PromptTokens     int `json:"promptTokens"`
+	CompletionTokens int `json:"completionTokens"`
+	TotalTokens      int `json:"totalTokens"`
 }

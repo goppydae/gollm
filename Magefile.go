@@ -155,7 +155,7 @@ func All() error {
 	if err := Lint(); err != nil {
 		return err
 	}
-	fmt.Println("✅ all checks passed")
+	fmt.Println("✅ All checks passed")
 	return nil
 }
 

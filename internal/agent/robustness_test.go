@@ -42,51 +42,6 @@ func (m *mockTool) Execute(ctx context.Context, args json.RawMessage, update too
 	return &tools.ToolResult{Content: "done"}, nil
 }
 
-func TestMaxSteps(t *testing.T) {
-	// Provider that always calls a tool
-	prov := &mockProvider{
-		responses: []*llm.Event{
-			{Type: llm.EventToolCall, ToolCall: &llm.ToolCall{ID: "1", Name: "test", Args: json.RawMessage("{}")}},
-		},
-	}
-	reg := tools.NewToolRegistry()
-	reg.Register(&mockTool{name: "test"})
-
-	ag := New(prov, reg)
-	ag.SetMaxSteps(1)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	errCh := make(chan error, 1)
-	ag.Subscribe(func(e Event) {
-		if e.Type == EventError {
-			errCh <- e.Error
-		}
-	})
-
-	err := ag.Prompt(ctx, "test")
-	if err != nil {
-		t.Fatalf("Prompt failed: %v", err)
-	}
-
-	select {
-	case lastErr := <-errCh:
-		if lastErr.Error() != "maximum recursive steps (1) exceeded" {
-			t.Errorf("Unexpected error: %v", lastErr)
-		}
-	case <-ctx.Done():
-		t.Fatal("Test timed out before receiving error")
-	}
-
-	// Also verify it goes idle eventually
-	select {
-	case <-ag.Idle():
-		// ok
-	case <-time.After(1 * time.Second):
-		t.Fatal("Agent did not go idle after error")
-	}
-}
 
 func TestDryRun(t *testing.T) {
 	prov := &mockProvider{

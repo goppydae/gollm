@@ -74,7 +74,7 @@ func (p *OllamaProvider) Stream(ctx context.Context, req *CompletionRequest) (<-
 
 		reqBody := map[string]any{
 			"model":    p.model,
-			"messages": req.Messages,
+			"messages": convertMessagesForOllama(req.Messages),
 			"stream":   true,
 		}
 
@@ -240,3 +240,23 @@ func (p *OllamaProvider) ListModels() ([]string, error) {
 	}
 	return names, nil
 }
+
+// convertMessagesForOllama maps internal roles to Ollama-compatible roles.
+func convertMessagesForOllama(messages []types.Message) []map[string]any {
+	out := make([]map[string]any, 0, len(messages))
+	for _, m := range messages {
+		role := m.Role
+		content := m.Content
+		if role == "success" {
+			// Compaction summary — surface as a user turn so the model receives it.
+			role = "user"
+			content = "[Context Summary]\n" + m.Content
+		}
+		out = append(out, map[string]any{
+			"role":    role,
+			"content": content,
+		})
+	}
+	return out
+}
+

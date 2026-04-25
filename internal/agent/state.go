@@ -46,6 +46,5 @@ type AgentState struct {
 	Thinking      ThinkingLevel   `json:"thinkingLevel"`
 	MaxTokens     int             `json:"maxTokens,omitempty"`
 	Temperature   float64         `json:"temperature,omitempty"`
-	MaxSteps      int             `json:"maxSteps,omitempty"`
 	DryRun        bool            `json:"dryRun,omitempty"`
 }

@@ -88,7 +88,11 @@ func (s *SkillTool) Execute(ctx context.Context, args json.RawMessage, update to
 	var params struct {
 		Args string `json:"args"`
 	}
-	_ = json.Unmarshal(args, &params)
+	if len(args) > 0 {
+		if err := json.Unmarshal(args, &params); err != nil {
+			return nil, fmt.Errorf("invalid skill arguments: %w", err)
+		}
+	}
 
 	content := s.skill.Content
 	if params.Args != "" {

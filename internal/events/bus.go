@@ -9,7 +9,7 @@ import (
 
 // subscriberChanSize is the per-subscriber buffer depth. Large enough to absorb
 // bursts from a streaming LLM turn without blocking the agent loop.
-const subscriberChanSize = 1024
+const subscriberChanSize = 4096
 
 // Handler is a function that handles an event.
 type Handler func(any)

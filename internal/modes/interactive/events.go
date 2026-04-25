@@ -118,7 +118,7 @@ func (m *model) handleAgentEvent(ev agent.Event) (tea.Model, tea.Cmd) {
 						if ev.ToolOutput.ToolCallID == "" && entry.items[i].tc.status != toolCallRunning {
 							continue
 						}
-						
+
 						entry.items[i].tc.status = toolCallSuccess
 						if ev.ToolOutput.IsError || strings.HasPrefix(ev.ToolOutput.Content, "Error:") || strings.HasPrefix(ev.ToolOutput.Content, "tool error:") {
 							entry.items[i].tc.status = toolCallFailure
@@ -151,9 +151,12 @@ func (m *model) handleAgentEvent(ev agent.Event) (tea.Model, tea.Cmd) {
 
 	case agent.EventStateChange:
 		if ev.StateChange != nil {
-			m.isRunning = (ev.StateChange.To == agent.StateThinking || ev.StateChange.To == agent.StateExecuting)
+			m.isRunning = (ev.StateChange.To == agent.StateThinking ||
+			               ev.StateChange.To == agent.StateExecuting ||
+			               ev.StateChange.To == agent.StateCompacting)
 			if m.isRunning {
 				cmds = append(cmds, m.spinner.Tick)
+				cmds = append(cmds, m.stopwatch.Start())
 			}
 		}
 
@@ -165,16 +168,46 @@ func (m *model) handleAgentEvent(ev agent.Event) (tea.Model, tea.Cmd) {
 	case agent.EventAgentEnd, agent.EventAbort:
 		m.isRunning = false
 		cmds = append(cmds, m.stopwatch.Stop())
-		_ = m.saveSession()
+		cmds = append(cmds, m.stopwatch.Reset())
+		if err := m.saveSession(); err != nil {
+			m.history = append(m.history, historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: "Failed to save session: " + err.Error()}}})
+		}
 
 	case agent.EventError:
 		if ev.Error != nil {
 			m.isRunning = false
+			cmds = append(cmds, m.stopwatch.Stop())
+			cmds = append(cmds, m.stopwatch.Reset())
 			m.history = append(m.history, historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: ev.Error.Error()}}})
 		}
 
 	case agent.EventTokens:
 		m.tokens = int(ev.Value)
+
+	case agent.EventCompactStart:
+		m.isCompacting.Store(true)
+		cmds = append(cmds, m.spinner.Tick)
+		cmds = append(cmds, m.stopwatch.Reset())
+		cmds = append(cmds, m.stopwatch.Start())
+		if ev.Content != "" {
+			m.history = append(m.history, historyEntry{
+				role:  "info",
+				items: []contentItem{{kind: contentItemText, text: ev.Content}},
+			})
+		}
+
+	case agent.EventCompactEnd:
+		m.isCompacting.Store(false)
+		if !m.isRunning {
+			cmds = append(cmds, m.stopwatch.Stop())
+		}
+		m.syncHistoryFromAgent()
+		if ev.Content != "" {
+			m.history = append(m.history, historyEntry{
+				role:  "success",
+				items: []contentItem{{kind: contentItemText, text: ev.Content}},
+			})
+		}
 	}
 
 	m.chatContent = m.buildChatContent()
@@ -188,8 +221,39 @@ func (m *model) handleAgentEvent(ev agent.Event) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) syncHistoryFromAgent() {
+	// Identify transient or "live" messages that shouldn't be lost.
+	// 1. A live assistant response currently being streamed (m.isRunning && role == assistant)
+	// 2. UI-only notices like errors or working indicators that aren't in the agent's persisted messages.
+	var trailingMeta []historyEntry
+	for i := len(m.history) - 1; i >= 0; i-- {
+		entry := m.history[i]
+
+		// If we find an assistant message while running, it's our live buffer.
+		if m.isRunning && entry.role == "assistant" {
+			trailingMeta = append([]historyEntry{entry}, trailingMeta...)
+			continue
+		}
+
+		// Identify if it's a transient UI notice.
+		// We avoid string-matching heuristics and instead trust the role and state.
+		isNotice := entry.role == "error" || entry.role == "info" || entry.role == "warning" || entry.role == "success"
+		
+		// If the notice is related to compaction, we skip it because syncHistoryFromAgent
+		// will rebuild the compaction summary from the agent's message list.
+		content := ""
+		if len(entry.items) > 0 { content = entry.items[0].text }
+		isCompactionNotice := strings.Contains(content, "Compacting") || strings.Contains(content, "Context compacted")
+
+		if isNotice && !isCompactionNotice {
+			trailingMeta = append([]historyEntry{entry}, trailingMeta...)
+		} else {
+			// Stop at the first real message that belongs in the agent's history.
+			break
+		}
+	}
+
 	msgs := m.ag.Messages()
-	m.history = make([]historyEntry, 0, len(msgs))
+	m.history = make([]historyEntry, 0, len(msgs)+len(trailingMeta))
 
 	for _, msg := range msgs {
 		if msg.Role == "tool" {
@@ -258,7 +322,7 @@ func (m *model) syncHistoryFromAgent() {
 
 		m.history = append(m.history, entry)
 	}
-
+	m.history = append(m.history, trailingMeta...)
 	m.newAssistantEntry = true
 	m.tokens = m.ag.EstimateContextTokens()
 	m.chatContent = m.buildChatContent()

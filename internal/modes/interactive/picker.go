@@ -95,7 +95,7 @@ func (p *Picker) View(style Style) string {
 		return ""
 	}
 	if len(p.Matches) == 0 {
-		return style.Dim().PaddingLeft(0).Render("no matches")
+		return style.Dim().PaddingLeft(0).Render("No matches")
 	}
 
 	start := p.Page * pickerPageSize
@@ -126,7 +126,7 @@ func (p *Picker) View(style Style) string {
 	totalPages := (len(p.Matches) + pickerPageSize - 1) / pickerPageSize
 	if totalPages > 1 {
 		lines = append(lines, style.Dim().Render(
-			fmt.Sprintf("page %d/%d (pgup/pgdn to scroll)", p.Page+1, totalPages)))
+			fmt.Sprintf("Page %d/%d (PgUp/PgDn to scroll)", p.Page+1, totalPages)))
 	}
 
 	return strings.Join(lines, "\n")

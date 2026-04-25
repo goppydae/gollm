@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/goppydae/gollm/internal/tools"
 )
@@ -17,6 +18,11 @@ type Extension interface {
 	// BeforePrompt is called before each LLM request.
 	// Return a modified state to change the request.
 	BeforePrompt(ctx context.Context, state *AgentState) *AgentState
+
+	// BeforeToolCall is called before each tool execution.
+	// Return (result, true) to intercept and prevent the tool from running.
+	// Return (nil, false) to allow normal execution.
+	BeforeToolCall(ctx context.Context, call *ToolCall, args json.RawMessage) (*tools.ToolResult, bool)
 
 	// AfterToolCall is called after each tool call completes.
 	// Return a modified result to change the outcome.
@@ -39,5 +45,8 @@ type NoopExtension struct {
 func (n *NoopExtension) Name() string                                    { return n.NameStr }
 func (n *NoopExtension) Tools() []tools.Tool                             { return nil }
 func (n *NoopExtension) BeforePrompt(ctx context.Context, state *AgentState) *AgentState { return state }
+func (n *NoopExtension) BeforeToolCall(_ context.Context, _ *ToolCall, _ json.RawMessage) (*tools.ToolResult, bool) {
+	return nil, false
+}
 func (n *NoopExtension) AfterToolCall(ctx context.Context, call *ToolCall, result *tools.ToolResult) *tools.ToolResult { return result }
-func (n *NoopExtension) ModifySystemPrompt(prompt string) string         { return prompt }
+func (n *NoopExtension) ModifySystemPrompt(prompt string) string { return prompt }

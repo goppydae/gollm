@@ -70,9 +70,6 @@ type Config struct {
 	GoogleAPIKey     string `mapstructure:"googleApiKey"`
 	LlamaCppBaseURL  string `mapstructure:"llamaCppBaseURL"`
 
-	// Maximum number of recursive tool calls per turn
-	MaxSteps int `mapstructure:"maxSteps"`
-
 	// DryRun mode: tools don't perform destructive actions
 	DryRun bool `mapstructure:"dryRun"`
 }
@@ -190,8 +187,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("ollamaBaseURL", "http://localhost:11434")
 	v.SetDefault("llamaCppBaseURL", "http://localhost:8080")
 	v.SetDefault("compaction.enabled", true)
-	v.SetDefault("compaction.reserveTokens", 16384)
-	v.SetDefault("compaction.keepRecentTokens", 20000)
-	v.SetDefault("maxSteps", 10)
+	v.SetDefault("compaction.reserveTokens", 4096)
+	v.SetDefault("compaction.keepRecentTokens", 8192)
 	v.SetDefault("dryRun", false)
 }

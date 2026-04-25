@@ -20,6 +20,7 @@ import (
 // Update implements tea.Model.Update.
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -29,58 +30,48 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.input.SetHeight(m.currentInputHeight())
 		m.vp.SetHeight(m.vpHeight())
 		m.refreshViewport()
-		return m, nil
 
 	case tea.KeyPressMsg:
-		return m.handleKey(msg)
+		var nm tea.Model
+		nm, cmd = m.handleKey(msg)
+		m = nm.(*model)
 
 	case tea.PasteMsg:
 		m.input, cmd = m.input.Update(msg)
 		m.input.SetHeight(m.currentInputHeight())
-		return m, cmd
 
 	case agentEventMsg:
 		return m.handleAgentEvent(msg.ev)
 
 	case tea.MouseWheelMsg:
-		if m.modal.visible {
-			return m, nil
+		if !m.modal.visible {
+			m.vp, cmd = m.vp.Update(msg)
+			m.userScrolled = !m.vp.AtBottom()
 		}
-		var cmd tea.Cmd
-		m.vp, cmd = m.vp.Update(msg)
-		m.userScrolled = !m.vp.AtBottom()
-		return m, cmd
 
 	case spinner.TickMsg:
-		if m.isRunning {
+		if m.isRunning || m.isCompacting.Load() {
 			m.spinner, cmd = m.spinner.Update(msg)
 			m.chatContent = m.buildChatContent()
 			m.vp.SetContent(m.chatContent)
-			return m, cmd
 		}
-		return m, nil
 
 	case stopwatch.TickMsg:
-		if m.isRunning {
+		if m.isRunning || m.isCompacting.Load() {
 			m.stopwatch, cmd = m.stopwatch.Update(msg)
 			m.chatContent = m.buildChatContent()
 			m.vp.SetContent(m.chatContent)
-			return m, cmd
 		}
-		return m, nil
 
 	case stopwatch.ResetMsg:
 		m.stopwatch, cmd = m.stopwatch.Update(msg)
-		return m, cmd
 
 	case progress.FrameMsg:
-		if m.isRunning {
+		if m.isRunning || m.isCompacting.Load() {
 			m.progressBar, cmd = m.progressBar.Update(msg)
 			m.chatContent = m.buildChatContent()
 			m.vp.SetContent(m.chatContent)
-			return m, cmd
 		}
-		return m, nil
 
 	case initialPromptMsg:
 		prompt := m.initialPrompt
@@ -92,19 +83,18 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			m.history = append(m.history, historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: err.Error()}}})
 		}
-		return m, listenForEvent(m.eventCh)
+		cmd = listenForEvent(m.eventCh)
 
 	case stopwatch.StartStopMsg:
 		m.stopwatch, cmd = m.stopwatch.Update(msg)
-		return m, cmd
-
-	default:
-		var cmd tea.Cmd
-		m.input, cmd = m.input.Update(msg)
-		var cmd2 tea.Cmd
-		m.vp, cmd2 = m.vp.Update(msg)
-		return m, tea.Batch(cmd, cmd2)
 	}
+
+	// Safety check: if busy, ensure we are listening for events
+	if m.isRunning || m.isCompacting.Load() {
+		cmd = tea.Batch(cmd, listenForEvent(m.eventCh))
+	}
+
+	return m, cmd
 }
 
 // onResize simulates a WindowSizeMsg — used by tests.
@@ -153,6 +143,7 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	// Ctrl+C: abort agent and clear input
 	if key.Mod == tea.ModCtrl && key.Code == 'c' {
 		m.ag.Abort()
+		m.cancel()
 		m.input.SetValue("")
 		m.input.SetHeight(inputHeight)
 		m.historyIndex = -1
@@ -161,10 +152,6 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, listenForEvent(m.eventCh)
 	}
 
-	// Block input if compacting
-	if m.isCompacting.Load() {
-		return m, nil
-	}
 
 	// Modal is open
 	if m.modal.visible {
@@ -187,12 +174,18 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.vp.SetHeight(m.vpHeight())
 			return m, listenForEvent(m.eventCh)
 		}
-		if m.isRunning {
+		isCompacting := m.isCompacting.Load()
+		if m.isRunning || isCompacting {
 			m.ag.Abort()
 			m.cancel() // cancel context to unblock LLM stream
 			return m, listenForEvent(m.eventCh)
 		}
 		return m, nil
+	}
+	
+	// Block other input if compacting
+	if m.isCompacting.Load() {
+		return m, listenForEvent(m.eventCh)
 	}
 
 	// Up: cycle back in history
@@ -313,8 +306,9 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 		// Check for slash command
 		if cmd := parseSlashCommand(raw); cmd != nil && knownCommand(cmd.name) {
-			if m.isRunning && (cmd.name == "new" || cmd.name == "resume" || cmd.name == "import" || cmd.name == "tree") {
-				m.history = append(m.history, historyEntry{role: "warning", items: []contentItem{{kind: contentItemText, text: "Cannot change session while agent is running. Abort first with Esc."}}})
+			isBusy := m.isRunning || m.isCompacting.Load()
+			if isBusy && (cmd.name == "new" || cmd.name == "resume" || cmd.name == "import" || cmd.name == "tree" || cmd.name == "fork" || cmd.name == "clone" || cmd.name == "model" || cmd.name == "compact") {
+				m.history = append(m.history, historyEntry{role: "warning", items: []contentItem{{kind: contentItemText, text: fmt.Sprintf("Cannot use /%s while agent is busy. Abort first with Esc.", cmd.name)}}})
 				return m.refreshViewport(), listenForEvent(m.eventCh)
 			}
 			result, err := handleSlashCommand(cmd, m.sessionMgr, m.ag, m.config)
@@ -348,9 +342,12 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 					}
 				}
 				if result.compact {
+					m.newContext()
+					m.isCompacting.Store(true)
 					return m, tea.Batch(
 						func() tea.Msg {
-							m.ag.Compact(m.config.Compaction.KeepRecentTokens)
+							m.ag.Compact(m.ctx, m.config.Compaction.KeepRecentTokens)
+							m.isCompacting.Store(false)
 							return nil
 						},
 						listenForEvent(m.eventCh),
@@ -452,6 +449,10 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	// Ctrl+P: cycle to the next model in the --models list
 	if Matches(msg, K.Ctrl("p")) && len(m.models) > 0 {
+		if m.isRunning {
+			m.history = append(m.history, historyEntry{role: "warning", items: []contentItem{{kind: contentItemText, text: "Cannot switch models while agent is running. Abort first with Esc."}}})
+			return m.refreshViewport(), listenForEvent(m.eventCh)
+		}
 		m.modelIndex = (m.modelIndex + 1) % len(m.models)
 		next := strings.TrimSpace(m.models[m.modelIndex])
 		// Parse optional provider prefix

@@ -55,7 +55,7 @@ func (p *GoogleProvider) Stream(ctx context.Context, req *CompletionRequest) (<-
 }
 
 func (p *GoogleProvider) stream(ctx context.Context, req *CompletionRequest, ch chan<- *Event) error {
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:streamGenerateContent?key=%s", p.model, p.apiKey)
+	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:streamGenerateContent", p.model)
 
 	body := p.convertRequest(req)
 	data, err := json.Marshal(body)
@@ -68,6 +68,7 @@ func (p *GoogleProvider) stream(ctx context.Context, req *CompletionRequest, ch 
 		return fmt.Errorf("create request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", p.apiKey)
 
 	resp, err := p.client.Do(httpReq)
 	if err != nil {
@@ -197,6 +198,10 @@ func (p *GoogleProvider) convertRequest(req *CompletionRequest) map[string]any {
 		} else if role == "system" {
 			// System prompt is handled separately in system_instruction
 			continue
+		} else if role == "success" {
+			// Compaction summary — surface as a user turn so the model receives it.
+			role = "user"
+			parts = []map[string]any{{"text": "[Context Summary]\n" + m.Content}}
 		}
 
 		contents = append(contents, map[string]any{
@@ -248,8 +253,13 @@ func (p *GoogleProvider) convertRequest(req *CompletionRequest) map[string]any {
 }
 
 func (p *GoogleProvider) ListModels() ([]string, error) {
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models?key=%s", p.apiKey)
-	resp, err := p.client.Get(url)
+	url := "https://generativelanguage.googleapis.com/v1beta/models"
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("x-goog-api-key", p.apiKey)
+	resp, err := p.client.Do(req)
 	if err != nil {
 		return nil, err
 	}

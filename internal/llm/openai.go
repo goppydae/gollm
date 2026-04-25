@@ -267,6 +267,12 @@ func convertMessagesForOpenAI(messages []types.Message) []map[string]any {
 				msg["tool_calls"] = tcs
 			}
 			out = append(out, msg)
+		case "success":
+			// Compaction summary — surface as a user turn so the model receives it.
+			out = append(out, map[string]any{
+				"role":    "user",
+				"content": "[Context Summary]\n" + m.Content,
+			})
 		default:
 			out = append(out, map[string]any{
 				"role":    m.Role,

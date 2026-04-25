@@ -24,6 +24,7 @@ const (
 	Extension_ExecuteTool_FullMethodName        = "/proto.Extension/ExecuteTool"
 	Extension_BeforePrompt_FullMethodName       = "/proto.Extension/BeforePrompt"
 	Extension_AfterToolCall_FullMethodName      = "/proto.Extension/AfterToolCall"
+	Extension_BeforeToolCall_FullMethodName     = "/proto.Extension/BeforeToolCall"
 	Extension_ModifySystemPrompt_FullMethodName = "/proto.Extension/ModifySystemPrompt"
 )
 
@@ -33,11 +34,10 @@ const (
 type ExtensionClient interface {
 	Name(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*NameResponse, error)
 	Tools(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ToolsResponse, error)
-	// ExecuteTool asks the extension process to execute one of its tools.
-	// Request reuses ToolCall (name + arguments_json); response reuses ToolResult (output + error).
-	ExecuteTool(ctx context.Context, in *ToolCall, opts ...grpc.CallOption) (*ToolResult, error)
+	ExecuteTool(ctx context.Context, in *ExecuteToolRequest, opts ...grpc.CallOption) (*ExecuteToolResponse, error)
 	BeforePrompt(ctx context.Context, in *BeforePromptRequest, opts ...grpc.CallOption) (*BeforePromptResponse, error)
 	AfterToolCall(ctx context.Context, in *AfterToolCallRequest, opts ...grpc.CallOption) (*AfterToolCallResponse, error)
+	BeforeToolCall(ctx context.Context, in *BeforeToolCallRequest, opts ...grpc.CallOption) (*BeforeToolCallResponse, error)
 	ModifySystemPrompt(ctx context.Context, in *ModifySystemPromptRequest, opts ...grpc.CallOption) (*ModifySystemPromptResponse, error)
 }
 
@@ -69,9 +69,9 @@ func (c *extensionClient) Tools(ctx context.Context, in *Empty, opts ...grpc.Cal
 	return out, nil
 }
 
-func (c *extensionClient) ExecuteTool(ctx context.Context, in *ToolCall, opts ...grpc.CallOption) (*ToolResult, error) {
+func (c *extensionClient) ExecuteTool(ctx context.Context, in *ExecuteToolRequest, opts ...grpc.CallOption) (*ExecuteToolResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ToolResult)
+	out := new(ExecuteToolResponse)
 	err := c.cc.Invoke(ctx, Extension_ExecuteTool_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -99,6 +99,16 @@ func (c *extensionClient) AfterToolCall(ctx context.Context, in *AfterToolCallRe
 	return out, nil
 }
 
+func (c *extensionClient) BeforeToolCall(ctx context.Context, in *BeforeToolCallRequest, opts ...grpc.CallOption) (*BeforeToolCallResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BeforeToolCallResponse)
+	err := c.cc.Invoke(ctx, Extension_BeforeToolCall_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *extensionClient) ModifySystemPrompt(ctx context.Context, in *ModifySystemPromptRequest, opts ...grpc.CallOption) (*ModifySystemPromptResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ModifySystemPromptResponse)
@@ -115,9 +125,10 @@ func (c *extensionClient) ModifySystemPrompt(ctx context.Context, in *ModifySyst
 type ExtensionServer interface {
 	Name(context.Context, *Empty) (*NameResponse, error)
 	Tools(context.Context, *Empty) (*ToolsResponse, error)
-	ExecuteTool(context.Context, *ToolCall) (*ToolResult, error)
+	ExecuteTool(context.Context, *ExecuteToolRequest) (*ExecuteToolResponse, error)
 	BeforePrompt(context.Context, *BeforePromptRequest) (*BeforePromptResponse, error)
 	AfterToolCall(context.Context, *AfterToolCallRequest) (*AfterToolCallResponse, error)
+	BeforeToolCall(context.Context, *BeforeToolCallRequest) (*BeforeToolCallResponse, error)
 	ModifySystemPrompt(context.Context, *ModifySystemPromptRequest) (*ModifySystemPromptResponse, error)
 	mustEmbedUnimplementedExtensionServer()
 }
@@ -135,7 +146,7 @@ func (UnimplementedExtensionServer) Name(context.Context, *Empty) (*NameResponse
 func (UnimplementedExtensionServer) Tools(context.Context, *Empty) (*ToolsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Tools not implemented")
 }
-func (UnimplementedExtensionServer) ExecuteTool(context.Context, *ToolCall) (*ToolResult, error) {
+func (UnimplementedExtensionServer) ExecuteTool(context.Context, *ExecuteToolRequest) (*ExecuteToolResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ExecuteTool not implemented")
 }
 func (UnimplementedExtensionServer) BeforePrompt(context.Context, *BeforePromptRequest) (*BeforePromptResponse, error) {
@@ -143,6 +154,9 @@ func (UnimplementedExtensionServer) BeforePrompt(context.Context, *BeforePromptR
 }
 func (UnimplementedExtensionServer) AfterToolCall(context.Context, *AfterToolCallRequest) (*AfterToolCallResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AfterToolCall not implemented")
+}
+func (UnimplementedExtensionServer) BeforeToolCall(context.Context, *BeforeToolCallRequest) (*BeforeToolCallResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method BeforeToolCall not implemented")
 }
 func (UnimplementedExtensionServer) ModifySystemPrompt(context.Context, *ModifySystemPromptRequest) (*ModifySystemPromptResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ModifySystemPrompt not implemented")
@@ -205,7 +219,7 @@ func _Extension_Tools_Handler(srv interface{}, ctx context.Context, dec func(int
 }
 
 func _Extension_ExecuteTool_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ToolCall)
+	in := new(ExecuteToolRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -217,7 +231,7 @@ func _Extension_ExecuteTool_Handler(srv interface{}, ctx context.Context, dec fu
 		FullMethod: Extension_ExecuteTool_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ExtensionServer).ExecuteTool(ctx, req.(*ToolCall))
+		return srv.(ExtensionServer).ExecuteTool(ctx, req.(*ExecuteToolRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -254,6 +268,24 @@ func _Extension_AfterToolCall_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ExtensionServer).AfterToolCall(ctx, req.(*AfterToolCallRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Extension_BeforeToolCall_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BeforeToolCallRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ExtensionServer).BeforeToolCall(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Extension_BeforeToolCall_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ExtensionServer).BeforeToolCall(ctx, req.(*BeforeToolCallRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -302,6 +334,10 @@ var Extension_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AfterToolCall",
 			Handler:    _Extension_AfterToolCall_Handler,
+		},
+		{
+			MethodName: "BeforeToolCall",
+			Handler:    _Extension_BeforeToolCall_Handler,
 		},
 		{
 			MethodName: "ModifySystemPrompt",

@@ -287,8 +287,7 @@ func handleStatsCommand(ag *agent.Agent) (*slashResult, error) {
 // handleCompact triggers compaction on the agent.
 func handleCompact(ag *agent.Agent) (*slashResult, error) {
 	return &slashResult{
-		historyEntry: historyEntry{role: "info", items: []contentItem{{kind: contentItemText, text: "Compacting session context..."}}},
-		compact:      true,
+		compact: true,
 	}, nil
 }
 

@@ -47,6 +47,9 @@ type Tool = tools.Tool
 // ToolResult is the output of a tool execution.
 type ToolResult = tools.ToolResult
 
+// Extension is the interface for agent extensions (gRPC plugins, skills, etc.).
+type Extension = agent.Extension
+
 // ThinkingLevel controls how much reasoning budget the model gets.
 type ThinkingLevel = types.ThinkingLevel
 
@@ -98,9 +101,6 @@ type Config struct {
 	// MaxTokens caps the response length (0 = provider default).
 	MaxTokens int
 
-	// MaxSteps caps the number of recursive tool calls per turn (0 = default 10).
-	MaxSteps int
-
 	// DryRun mode prevents tools from performing destructive actions.
 	DryRun bool
 
@@ -143,9 +143,6 @@ func NewAgent(cfg Config) (*Agent, error) {
 	}
 	if cfg.MaxTokens > 0 {
 		ag.SetMaxTokens(cfg.MaxTokens)
-	}
-	if cfg.MaxSteps > 0 {
-		ag.SetMaxSteps(cfg.MaxSteps)
 	}
 	if cfg.DryRun {
 		ag.SetDryRun(true)
