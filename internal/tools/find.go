@@ -28,7 +28,7 @@ func (Find) Schema() json.RawMessage {
 			},
 			"glob": {
 				"type": "string",
-				"description": "Glob pattern to match (e.g., '*.go', '**/*.txt'). Required."
+				"description": "Glob pattern matched against each file's basename (e.g., '*.go', 'main_*.go'). Use '*' as a wildcard within a name component. Note: '**' (recursive match) is not supported; the search is always recursive from 'path'."
 			},
 			"type": {
 				"type": "string",
@@ -62,6 +62,14 @@ func (Find) Execute(ctx context.Context, args json.RawMessage, update ToolUpdate
 	if err != nil {
 		return nil, fmt.Errorf("resolve path: %w", err)
 	}
+
+	// Strip a leading "**/" so patterns like "**/*.go" degrade gracefully to
+	// "*.go" (the search is always recursive, so the prefix is redundant).
+	glob := params.Glob
+	for strings.HasPrefix(glob, "**/") {
+		glob = glob[3:]
+	}
+	params.Glob = glob
 
 	var matches []string
 

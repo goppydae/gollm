@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/goppydae/gollm/internal/agent"
 	"github.com/goppydae/gollm/internal/session"
 
 	lipgloss "charm.land/lipgloss/v2"
@@ -43,7 +42,7 @@ func newModal() modalState {
 	}
 }
 
-func (m *modalState) openStatsModal(stats agent.AgentStats, style Style) {
+func (m *modalState) openStatsModal(stats agentStats, style Style) {
 	bg := style.PanelBgColor()
 	header := lipgloss.NewStyle().Foreground(style.AccentColor()).Background(bg).Bold(true).Underline(true)
 

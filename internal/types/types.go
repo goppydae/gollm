@@ -69,12 +69,16 @@ type Session struct {
 	Model      string          `json:"model"`
 	Provider   string          `json:"provider"`
 	Thinking   ThinkingLevel   `json:"thinkingLevel"`
-	SystemPrompt string      `json:"systemPrompt"`
+	SystemPrompt string        `json:"systemPrompt"`
 	Messages   []Message       `json:"messages"`
 	Tools      []ToolInfo      `json:"tools,omitempty"`
 	MaxTokens  int             `json:"maxTokens,omitempty"`
 	Temperature float64        `json:"temperature,omitempty"`
 	IsRunning  bool            `json:"isRunning"`
+	DryRun              bool   `json:"dryRun,omitempty"`
+	CompactionEnabled   bool   `json:"compactionEnabled,omitempty"`
+	CompactionReserve   int    `json:"compactionReserveTokens,omitempty"`
+	CompactionKeep      int    `json:"compactionKeepRecentTokens,omitempty"`
 }
 
 // Usage tracks token usage.

@@ -30,6 +30,7 @@ type ToolDefinition struct {
 	Name        string
 	Description string
 	Schema      json.RawMessage
+	IsReadOnly  bool
 }
 
 // Plugin is the interface that standalone gRPC extension binaries implement.

@@ -1,33 +1,21 @@
 package interactive
 
 import (
-	"context"
 	"os"
 	"strings"
 	"testing"
 
-	"github.com/goppydae/gollm/internal/agent"
+	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
 	"github.com/goppydae/gollm/internal/config"
-	"github.com/goppydae/gollm/internal/llm"
 	"github.com/goppydae/gollm/internal/session"
 	"github.com/goppydae/gollm/internal/themes"
-	"github.com/goppydae/gollm/internal/tools"
 )
 
 // TestRenderOutput exercises the full rendering pipeline with a conversation.
 // ANSI output is written to /tmp/gollm-render-output.txt for inspection.
 func TestRenderOutput(t *testing.T) {
-	registry := tools.NewToolRegistry()
-	ag := agent.New(&stubProvider{}, registry)
-	eventCh := make(chan agent.Event, 64)
-	ag.Subscribe(func(ev agent.Event) {
-		select {
-		case eventCh <- ev:
-		default:
-		}
-	})
-
-	m := newModel("gpt-4", "test", "medium", 128000, ag, eventCh, session.NewManager(""), config.DefaultConfig(), "")
+	eventCh := make(chan *pb.AgentEvent, 64)
+	m := newModel("gpt-4", "test", "medium", 128000, nil, "", eventCh, session.NewManager(""), config.DefaultConfig(), "")
 	m.style = NewStyle(*themes.DarkTheme())
 
 	// Wide viewport so text isn't truncated
@@ -72,11 +60,8 @@ func TestRenderOutput(t *testing.T) {
 
 // TestRenderInitialState renders the idle TUI with no messages.
 func TestRenderInitialState(t *testing.T) {
-	registry := tools.NewToolRegistry()
-	ag := agent.New(&stubProvider{}, registry)
-	eventCh := make(chan agent.Event, 64)
-
-	m := newModel("llama3", "ollama", "low", 0, ag, eventCh, session.NewManager(""), config.DefaultConfig(), "")
+	eventCh := make(chan *pb.AgentEvent, 64)
+	m := newModel("llama3", "ollama", "low", 0, nil, "", eventCh, session.NewManager(""), config.DefaultConfig(), "")
 	m.style = NewStyle(*themes.DarkTheme())
 	m.onResize(100, 24)
 
@@ -93,11 +78,8 @@ func TestRenderInitialState(t *testing.T) {
 
 // TestRenderWithToolCalls renders with simulated tool calls in progress.
 func TestRenderWithToolCalls(t *testing.T) {
-	registry := tools.NewToolRegistry()
-	ag := agent.New(&stubProvider{}, registry)
-	eventCh := make(chan agent.Event, 64)
-
-	m := newModel("gpt-4", "test", "medium", 128000, ag, eventCh, session.NewManager(""), config.DefaultConfig(), "")
+	eventCh := make(chan *pb.AgentEvent, 64)
+	m := newModel("gpt-4", "test", "medium", 128000, nil, "", eventCh, session.NewManager(""), config.DefaultConfig(), "")
 	m.style = NewStyle(*themes.DarkTheme())
 	m.onResize(160, 30)
 
@@ -120,20 +102,4 @@ func TestRenderWithToolCalls(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("Rendered %d bytes to /tmp/gollm-render-toolcalls.txt", len(output))
-}
-
-// stubProvider implements llm.Provider for testing.
-type stubProvider struct{}
-
-func (s *stubProvider) Info() llm.ProviderInfo {
-	return llm.ProviderInfo{
-		Model: "stub",
-		Name:  "stub",
-	}
-}
-
-func (s *stubProvider) Stream(ctx context.Context, req *llm.CompletionRequest) (<-chan *llm.Event, error) {
-	ch := make(chan *llm.Event)
-	close(ch)
-	return ch, nil
 }

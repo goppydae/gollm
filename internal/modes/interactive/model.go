@@ -15,7 +15,7 @@ import (
 	lipgloss "charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/compat"
 
-	"github.com/goppydae/gollm/internal/agent"
+	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
 	"github.com/goppydae/gollm/internal/config"
 	"github.com/goppydae/gollm/internal/session"
 	"github.com/goppydae/gollm/internal/themes"
@@ -26,7 +26,7 @@ func NewStyle(t Theme) Style {
 	return themes.NewStyle(t)
 }
 
-func newModel(modelName, provider, thinking string, contextWindow int, ag *agent.Agent, eventCh <-chan agent.Event, mgr *session.Manager, cfg *config.Config, initialInput string) *model {
+func newModel(modelName, provider, thinking string, contextWindow int, client pb.AgentServiceClient, sessionID string, eventCh chan *pb.AgentEvent, mgr *session.Manager, cfg *config.Config, initialInput string) *model {
 	// Input
 	input := textarea.New()
 	input.Placeholder = "Prompt me..."
@@ -79,7 +79,8 @@ func newModel(modelName, provider, thinking string, contextWindow int, ag *agent
 		thinking:      thinking,
 		contextWindow: contextWindow,
 		history:       []historyEntry{},
-		ag:            ag,
+		client:        client,
+		sessionID:     sessionID,
 		eventCh:       eventCh,
 		sessionMgr:    mgr,
 		config:        cfg,

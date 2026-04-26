@@ -1,7 +1,6 @@
 package modes
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"os"
@@ -11,31 +10,21 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/goppydae/gollm/internal/agent"
 	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
-	"github.com/goppydae/gollm/internal/grpcserver"
-	"github.com/goppydae/gollm/internal/llm"
-	"github.com/goppydae/gollm/internal/session"
-	"github.com/goppydae/gollm/internal/tools"
+	"github.com/goppydae/gollm/internal/service"
 )
 
 // GRPCHandler starts a gRPC server exposing the AgentService.
 type GRPCHandler struct {
-	Provider   llm.Provider
-	Registry   *tools.ToolRegistry
-	Manager    *session.Manager
-	Extensions []agent.Extension
-	Addr       string
+	Service *service.Service
+	Addr    string
 }
 
 // NewGRPCHandler creates a GRPCHandler.
-func NewGRPCHandler(provider llm.Provider, registry *tools.ToolRegistry, mgr *session.Manager, exts []agent.Extension, addr string) Handler {
+func NewGRPCHandler(svc *service.Service, addr string) Handler {
 	return &GRPCHandler{
-		Provider:   provider,
-		Registry:   registry,
-		Manager:    mgr,
-		Extensions: exts,
-		Addr:       addr,
+		Service: svc,
+		Addr:    addr,
 	}
 }
 
@@ -45,12 +34,8 @@ func (h *GRPCHandler) Run(_ []string) error {
 		return fmt.Errorf("grpc listen %s: %w", h.Addr, err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	srv := grpcserver.New(ctx, h.Provider, h.Registry, h.Manager, h.Extensions)
 	gs := grpc.NewServer()
-	pb.RegisterAgentServiceServer(gs, srv)
+	pb.RegisterAgentServiceServer(gs, h.Service)
 
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- gs.Serve(lis) }()
@@ -67,9 +52,8 @@ func (h *GRPCHandler) Run(_ []string) error {
 	}
 
 	fmt.Println("shutting down gRPC server…")
-	cancel()
-	srv.SaveAllSessions()
-	srv.StopAllSessions()
+	h.Service.SaveAllSessions()
+	h.Service.StopAllSessions()
 
 	done := make(chan struct{})
 	go func() { gs.GracefulStop(); close(done) }()

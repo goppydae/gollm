@@ -226,6 +226,9 @@ func (a *Agent) State() *AgentState {
 	copy(stateCopy.Messages, a.state.Messages)
 	stateCopy.Tools = make([]ToolInfo, len(a.state.Tools))
 	copy(stateCopy.Tools, a.state.Tools)
+	stateCopy.Compaction.Enabled = a.compaction.Enabled
+	stateCopy.Compaction.ReserveTokens = a.compaction.ReserveTokens
+	stateCopy.Compaction.KeepRecentTokens = a.compaction.KeepRecentTokens
 	return &stateCopy
 }
 
@@ -366,6 +369,9 @@ func (a *Agent) Prompt(ctx context.Context, text string, images ...Image) error 
 
 	msg.Timestamp = time.Now()
 	a.mu.Lock()
+	if a.state.Session.Name == "" && text != "" && text != "Continue" {
+		a.state.Session.Name = text
+	}
 	a.state.Messages = append(a.state.Messages, msg)
 	a.state.Session.UpdatedAt = time.Now()
 	a.mu.Unlock()
@@ -560,8 +566,12 @@ func (a *Agent) Compact(ctx context.Context, keepRecentTokens int) {
 	}
 
 	// 6. Generate Summaries via LLM
+	// The main summary and the optional split-turn prefix summary can be generated
+	// concurrently. Both goroutines use ctx, so a cancellation propagates into the
+	// provider stream and they exit quickly. The single-slot channels guarantee the
+	// goroutines never block on a send even if we exit early via ctx.Done().
 	a.mu.Unlock()
-	
+
 	summaryChan := make(chan string, 1)
 	errChan := make(chan error, 1)
 	go func() {
@@ -577,7 +587,6 @@ func (a *Agent) Compact(ctx context.Context, keepRecentTokens int) {
 	if cutResult.IsSplitTurn {
 		s, err := a.generateTurnPrefixSummary(ctx, turnPrefixMessages)
 		if err != nil {
-			// Non-fatal, but we should log it
 			turnPrefixSummary = "## Turn Prefix Summary\n(Summarization failed)"
 		} else {
 			turnPrefixSummary = s
@@ -591,6 +600,7 @@ func (a *Agent) Compact(ctx context.Context, keepRecentTokens int) {
 	case err := <-errChan:
 		summaryText = "## Session Progress Summary\n(Summarization failed: " + err.Error() + ")"
 	case <-ctx.Done():
+		// Re-acquire the lock so the deferred unlock is balanced, then bail.
 		a.mu.Lock()
 		return
 	}
@@ -971,6 +981,14 @@ func (a *Agent) LoadSession(sess *types.Session) {
 	a.state.SystemPrompt = sess.SystemPrompt
 	a.state.MaxTokens = sess.MaxTokens
 	a.state.Temperature = sess.Temperature
+	if sess.DryRun {
+		a.state.DryRun = sess.DryRun
+	}
+	if sess.CompactionEnabled || sess.CompactionReserve > 0 || sess.CompactionKeep > 0 {
+		a.state.Compaction.Enabled = sess.CompactionEnabled
+		a.state.Compaction.ReserveTokens = sess.CompactionReserve
+		a.state.Compaction.KeepRecentTokens = sess.CompactionKeep
+	}
 }
 
 // InvokeTool manually triggers a tool call as if it came from the assistant.

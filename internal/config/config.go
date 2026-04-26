@@ -2,6 +2,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -63,12 +64,13 @@ type Config struct {
 	Offline bool `mapstructure:"offline"`
 
 	// Provider-specific
-	OllamaBaseURL    string `mapstructure:"ollamaBaseURL"`
-	OpenAIBaseURL    string `mapstructure:"openAIBaseURL"`
-	OpenAIAPIKey     string `mapstructure:"openAIApiKey"`
-	AnthropicAPIKey  string `mapstructure:"anthropicApiKey"`
-	GoogleAPIKey     string `mapstructure:"googleApiKey"`
-	LlamaCppBaseURL  string `mapstructure:"llamaCppBaseURL"`
+	OllamaBaseURL       string `mapstructure:"ollamaBaseURL"`
+	OpenAIBaseURL       string `mapstructure:"openAIBaseURL"`
+	OpenAIAPIKey        string `mapstructure:"openAIApiKey"`
+	AnthropicAPIKey     string `mapstructure:"anthropicApiKey"`
+	AnthropicAPIVersion string `mapstructure:"anthropicApiVersion"`
+	GoogleAPIKey        string `mapstructure:"googleApiKey"`
+	LlamaCppBaseURL     string `mapstructure:"llamaCppBaseURL"`
 
 	// DryRun mode: tools don't perform destructive actions
 	DryRun bool `mapstructure:"dryRun"`
@@ -126,6 +128,10 @@ func Load() (*Config, error) {
 		cfg.PromptTemplatePaths[i] = expandPath(p)
 	}
 
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("config validation: %w", err)
+	}
+
 	return &cfg, nil
 }
 
@@ -160,6 +166,21 @@ func expandPath(p string) string {
 		}
 	}
 	return p
+}
+
+// Validate checks for invalid or mutually exclusive configuration values.
+func (c *Config) Validate() error {
+	validThinking := map[string]bool{"": true, "none": true, "low": true, "medium": true, "high": true}
+	if !validThinking[c.ThinkingLevel] {
+		return fmt.Errorf("invalid thinkingLevel %q: must be one of none, low, medium, high", c.ThinkingLevel)
+	}
+	if c.Compaction.ReserveTokens < 0 {
+		return fmt.Errorf("compaction.reserveTokens must be >= 0, got %d", c.Compaction.ReserveTokens)
+	}
+	if c.Compaction.KeepRecentTokens < 0 {
+		return fmt.Errorf("compaction.keepRecentTokens must be >= 0, got %d", c.Compaction.KeepRecentTokens)
+	}
+	return nil
 }
 
 // DefaultConfig returns the default configuration without reading any files.

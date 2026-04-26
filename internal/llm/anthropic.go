@@ -32,11 +32,12 @@ const (
 
 // AnthropicProvider implements the Provider interface for Anthropic's Messages API.
 type AnthropicProvider struct {
-	client    *http.Client
-	apiKey    string
-	model     string
-	maxTokens int
-	temp      float64
+	client     *http.Client
+	apiKey     string
+	apiVersion string
+	model      string
+	maxTokens  int
+	temp       float64
 }
 
 // NewAnthropicProvider creates a new Anthropic provider.
@@ -45,12 +46,22 @@ func NewAnthropicProvider(apiKey, model string) *AnthropicProvider {
 		model = "claude-sonnet-4-6"
 	}
 	return &AnthropicProvider{
-		client:    &http.Client{Timeout: anthropicClientTimeout},
-		apiKey:    apiKey,
-		model:     model,
-		maxTokens: anthropicDefaultMaxTokens,
-		temp:      anthropicThinkingTemperature,
+		client:     &http.Client{Timeout: anthropicClientTimeout},
+		apiKey:     apiKey,
+		apiVersion: anthropicAPIVersion,
+		model:      model,
+		maxTokens:  anthropicDefaultMaxTokens,
+		temp:       anthropicThinkingTemperature,
 	}
+}
+
+// WithAPIVersion returns a copy of the provider using the given API version string.
+func (p *AnthropicProvider) WithAPIVersion(v string) *AnthropicProvider {
+	cp := *p
+	if v != "" {
+		cp.apiVersion = v
+	}
+	return &cp
 }
 
 func (p *AnthropicProvider) Info() ProviderInfo {
@@ -133,7 +144,7 @@ func (p *AnthropicProvider) stream(ctx context.Context, req *CompletionRequest, 
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("x-api-key", p.apiKey)
-	httpReq.Header.Set("anthropic-version", anthropicAPIVersion)
+	httpReq.Header.Set("anthropic-version", p.apiVersion)
 
 	// Track content blocks: index → type/id/name/args
 	type blockState struct {
@@ -332,7 +343,7 @@ func (p *AnthropicProvider) ListModels() ([]string, error) {
 		return nil, err
 	}
 	req.Header.Set("x-api-key", p.apiKey)
-	req.Header.Set("anthropic-version", anthropicAPIVersion)
+	req.Header.Set("anthropic-version", p.apiVersion)
 
 	resp, err := p.client.Do(req)
 	if err != nil {

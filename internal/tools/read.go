@@ -104,16 +104,24 @@ func splitLines(s string) []string {
 	if s == "" {
 		return nil
 	}
-	lines := []string{}
+	var lines []string
 	start := 0
 	for i := 0; i < len(s); i++ {
 		if s[i] == '\n' {
-			lines = append(lines, s[start:i])
+			end := i
+			if end > start && s[end-1] == '\r' {
+				end-- // strip \r from \r\n pairs
+			}
+			lines = append(lines, s[start:end])
 			start = i + 1
 		}
 	}
 	if start < len(s) {
-		lines = append(lines, s[start:])
+		line := s[start:]
+		if len(line) > 0 && line[len(line)-1] == '\r' {
+			line = line[:len(line)-1]
+		}
+		lines = append(lines, line)
 	}
 	return lines
 }

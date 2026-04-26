@@ -1,14 +1,11 @@
 package interactive
 
 import (
-	"context"
 	"strings"
 	"testing"
 
-	"github.com/goppydae/gollm/internal/agent"
-	"github.com/goppydae/gollm/internal/llm"
+	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
 	"github.com/goppydae/gollm/internal/themes"
-	"github.com/goppydae/gollm/internal/types"
 )
 
 func TestRenderReadToolCall(t *testing.T) {
@@ -16,7 +13,7 @@ func TestRenderReadToolCall(t *testing.T) {
 	m.style = NewStyle(*themes.DarkTheme())
 	m.width = 100
 	m.vp.SetWidth(m.width - borderOffset - chatMargin*2)
-	
+
 	tc := toolCallEntry{
 		id:     "call_1",
 		name:   "read",
@@ -24,10 +21,10 @@ func TestRenderReadToolCall(t *testing.T) {
 		status: toolCallSuccess,
 	}
 	output := "package tools\n\nimport (\n\t\"context\"\n\t\"encoding/json\"\n\t\"fmt\"\n\t\"os\"\n\t\"path/filepath\"\n\t\"strings\"\n)\n"
-	
+
 	res := renderToolCall(tc, output, m.width, m.style, false)
 	t.Logf("Rendered output:\n%s", res)
-	
+
 	if !strings.Contains(res, "read") {
 		t.Error("Expected 'read' in rendered output")
 	}
@@ -42,70 +39,40 @@ func TestRenderReadToolCall(t *testing.T) {
 func TestSyncReadToolCall(t *testing.T) {
 	m := &model{}
 	m.style = NewStyle(*themes.DarkTheme())
-	m.ag = &agent.Agent{} // Stub
-	
+
 	tcID := "call_123"
-	m.ag = agent.New(&reproStubProvider{}, nil)
-	
-	// Create a history in the agent
-	assistantMsg := agent.Message{
-		Role: "assistant",
-		Content: "I will read the file.",
-		ToolCalls: []types.ToolCall{
-			{ID: tcID, Name: "read", Args: []byte(`{"path": "test.go"}`)},
+
+	// Manually build history entries (mirrors what syncHistoryFromService would produce)
+	assistantEntry := historyEntry{
+		role: "assistant",
+		items: []contentItem{
+			{kind: contentItemText, text: "I will read the file."},
+			{kind: contentItemToolCall, tc: toolCallEntry{id: tcID, name: "read", arg: "test.go", status: toolCallRunning}},
 		},
 	}
-	toolMsg := agent.Message{
-		Role: "tool",
-		ToolCallID: tcID,
-		Content: "package main\n\nfunc main() {}\n",
-	}
-	
-	// We need to inject these messages into the agent's private state for testing
-	// but since we can't easily, let's just mock the sync logic
-	
-	msgs := []agent.Message{assistantMsg, toolMsg}
-	
-	m.history = make([]historyEntry, 0)
-	for _, msg := range msgs {
-		if msg.Role == "assistant" {
-			entry := historyEntry{role: "assistant"}
-			entry.items = append(entry.items, contentItem{kind: contentItemText, text: msg.Content})
-			for _, tc := range msg.ToolCalls {
-				entry.items = append(entry.items, contentItem{
-					kind: contentItemToolCall,
-					tc: toolCallEntry{
-						id:     tc.ID,
-						name:   tc.Name,
-						arg:    "test.go",
-						status: toolCallRunning,
+	m.history = append(m.history, assistantEntry)
+
+	// Simulate tool output arriving
+	for hIdx := len(m.history) - 1; hIdx >= 0; hIdx-- {
+		entry := &m.history[hIdx]
+		for i := range entry.items {
+			if entry.items[i].kind == contentItemToolCall && entry.items[i].tc.id == tcID {
+				entry.items[i].tc.status = toolCallSuccess
+				outItem := contentItem{
+					kind: contentItemToolOutput,
+					out: toolOutputEntry{
+						toolCallID: tcID,
+						content:    "package main\n\nfunc main() {}\n",
 					},
-				})
-			}
-			m.history = append(m.history, entry)
-		} else if msg.Role == "tool" {
-			for hIdx := len(m.history) - 1; hIdx >= 0; hIdx-- {
-				entry := &m.history[hIdx]
-				for i := range entry.items {
-					if entry.items[i].kind == contentItemToolCall && entry.items[i].tc.id == msg.ToolCallID {
-						entry.items[i].tc.status = toolCallSuccess
-						outItem := contentItem{
-							kind: contentItemToolOutput,
-							out: toolOutputEntry{
-								toolCallID: msg.ToolCallID,
-								content:    msg.Content,
-							},
-						}
-						entry.items = append(entry.items, contentItem{})
-						copy(entry.items[i+2:], entry.items[i+1:])
-						entry.items[i+1] = outItem
-						break
-					}
 				}
+				entry.items = append(entry.items, contentItem{})
+				copy(entry.items[i+2:], entry.items[i+1:])
+				entry.items[i+1] = outItem
+				break
 			}
 		}
 	}
-	
+
 	if len(m.history) != 1 {
 		t.Fatalf("Expected 1 history entry, got %d", len(m.history))
 	}
@@ -121,31 +88,29 @@ func TestSyncReadToolCall(t *testing.T) {
 	}
 }
 
-
-
 func TestRenderLargeReadToolCall(t *testing.T) {
 	m := &model{}
 	m.style = NewStyle(*themes.DarkTheme())
 	m.width = 100
 	m.vp.SetWidth(m.width - borderOffset - chatMargin*2)
-	
+
 	tc := toolCallEntry{
 		id:     "call_large",
 		name:   "read",
 		arg:    "large_file.txt",
 		status: toolCallSuccess,
 	}
-	
+
 	var sb strings.Builder
 	for i := 1; i <= 1000; i++ {
 		sb.WriteString(strings.Repeat("A", 80))
 		sb.WriteString("\n")
 	}
 	output := sb.String()
-	
+
 	res := renderToolCall(tc, output, m.width, m.style, false)
 	t.Logf("Rendered output length: %d", len(res))
-	
+
 	if !strings.Contains(res, "read") {
 		t.Error("Expected 'read' in rendered output")
 	}
@@ -159,29 +124,28 @@ func TestFullAgentTurnEvents(t *testing.T) {
 	m.style = NewStyle(*themes.DarkTheme())
 	m.width = 100
 	m.vp.SetWidth(m.width - borderOffset - chatMargin*2)
-	
+
 	tc1ID := "call_read"
 	tc2ID := "call_ls"
-	
-	// Sequence of events
-	events := []agent.Event{
-		{Type: agent.EventAgentStart},
-		{Type: agent.EventTextDelta, Content: "I will read the file and then list the directory.\n"},
-		{Type: agent.EventToolCall, ToolCall: &types.ToolCall{ID: tc1ID, Name: "read", Args: []byte(`{"path":"main.go"}`)}},
-		{Type: agent.EventToolCall, ToolCall: &types.ToolCall{ID: tc2ID, Name: "ls", Args: []byte(`{"path":"."}`)}},
-		{Type: agent.EventMessageEnd},
-		{Type: agent.EventToolDelta, ToolCall: &types.ToolCall{ID: tc1ID, Name: "read"}, Content: "package main\n"},
-		{Type: agent.EventToolOutput, ToolOutput: &types.ToolOutput{ToolCallID: tc1ID, ToolName: "read", Content: "package main\n\nfunc main() {}\n"}},
-		{Type: agent.EventToolOutput, ToolOutput: &types.ToolOutput{ToolCallID: tc2ID, ToolName: "ls", Content: "main.go\ngo.mod\n"}},
+
+	events := []*pb.AgentEvent{
+		{Payload: &pb.AgentEvent_AgentStart{AgentStart: &pb.AgentStartEvent{}}},
+		{Payload: &pb.AgentEvent_TextDelta{TextDelta: &pb.TextDeltaEvent{Content: "I will read the file and then list the directory.\n"}}},
+		{Payload: &pb.AgentEvent_ToolCall{ToolCall: &pb.ToolCallEvent{Id: tc1ID, Name: "read", ArgsJson: `{"path":"main.go"}`}}},
+		{Payload: &pb.AgentEvent_ToolCall{ToolCall: &pb.ToolCallEvent{Id: tc2ID, Name: "ls", ArgsJson: `{"path":"."}`}}},
+		{Payload: &pb.AgentEvent_MessageEnd{MessageEnd: &pb.MessageEndEvent{}}},
+		{Payload: &pb.AgentEvent_ToolDelta{ToolDelta: &pb.ToolDeltaEvent{ToolCallId: tc1ID, Content: "package main\n"}}},
+		{Payload: &pb.AgentEvent_ToolOutput{ToolOutput: &pb.ToolOutputEvent{ToolCallId: tc1ID, ToolName: "read", Content: "package main\n\nfunc main() {}\n"}}},
+		{Payload: &pb.AgentEvent_ToolOutput{ToolOutput: &pb.ToolOutputEvent{ToolCallId: tc2ID, ToolName: "ls", Content: "main.go\ngo.mod\n"}}},
 	}
-	
+
 	for _, ev := range events {
 		m.handleAgentEvent(ev)
 	}
-	
+
 	res := m.buildChatContent()
 	t.Logf("Final rendered output:\n%s", res)
-	
+
 	if !strings.Contains(res, "read main.go") {
 		t.Error("Expected 'read main.go' in rendered output")
 	}
@@ -201,28 +165,26 @@ func TestRedundantEvents(t *testing.T) {
 	m.style = NewStyle(*themes.DarkTheme())
 	m.width = 100
 	m.vp.SetWidth(m.width - borderOffset - chatMargin*2)
-	
+
 	tcID := "call_redundant"
-	
-	// Sequence with redundant events
-	events := []agent.Event{
-		{Type: agent.EventAgentStart},
-		{Type: agent.EventToolCall, ToolCall: &types.ToolCall{ID: tcID, Name: "read", Args: []byte(`{"path":"main.go"}`)}},
-		{Type: agent.EventMessageEnd}, // First end
-		{Type: agent.EventMessageEnd}, // Redundant end
-		{Type: agent.EventToolCall, ToolCall: &types.ToolCall{ID: tcID, Name: "read", Args: []byte(`{"path":"main.go"}`)}}, // Redundant call
-		{Type: agent.EventToolOutput, ToolOutput: &types.ToolOutput{ToolCallID: tcID, ToolName: "read", Content: "package main\n"}},
+
+	events := []*pb.AgentEvent{
+		{Payload: &pb.AgentEvent_AgentStart{AgentStart: &pb.AgentStartEvent{}}},
+		{Payload: &pb.AgentEvent_ToolCall{ToolCall: &pb.ToolCallEvent{Id: tcID, Name: "read", ArgsJson: `{"path":"main.go"}`}}},
+		{Payload: &pb.AgentEvent_MessageEnd{MessageEnd: &pb.MessageEndEvent{}}},
+		{Payload: &pb.AgentEvent_MessageEnd{MessageEnd: &pb.MessageEndEvent{}}}, // redundant
+		{Payload: &pb.AgentEvent_ToolCall{ToolCall: &pb.ToolCallEvent{Id: tcID, Name: "read", ArgsJson: `{"path":"main.go"}`}}}, // redundant
+		{Payload: &pb.AgentEvent_ToolOutput{ToolOutput: &pb.ToolOutputEvent{ToolCallId: tcID, ToolName: "read", Content: "package main\n"}}},
 	}
-	
+
 	for _, ev := range events {
 		m.handleAgentEvent(ev)
 	}
-	
-	// Verify history size
+
 	if len(m.history) != 1 {
 		t.Errorf("Expected 1 history entry, got %d", len(m.history))
 	}
-	
+
 	entry := m.history[0]
 	tcCount := 0
 	for _, item := range entry.items {
@@ -233,7 +195,7 @@ func TestRedundantEvents(t *testing.T) {
 	if tcCount != 1 {
 		t.Errorf("Expected 1 tool call item, got %d", tcCount)
 	}
-	
+
 	res := m.buildChatContent()
 	if !strings.Contains(res, "✓ read main.go") {
 		t.Error("Expected successful read tool call in output")
@@ -245,7 +207,7 @@ func TestRenderFileAttachment(t *testing.T) {
 	m.style = NewStyle(*themes.DarkTheme())
 	m.width = 100
 	m.vp.SetWidth(m.width - borderOffset - chatMargin*2)
-	
+
 	text := "<file path=\"README.md\">\n# gollm\nAn AI agent harness.\n</file>\nExtra text."
 	entry := historyEntry{
 		role: "user",
@@ -253,10 +215,10 @@ func TestRenderFileAttachment(t *testing.T) {
 			{kind: contentItemText, text: text},
 		},
 	}
-	
+
 	res := renderEntry(entry, m.style, m.width, false)
 	t.Logf("Rendered file attachment:\n%s", res)
-	
+
 	if !strings.Contains(res, "📎 file: README.md") {
 		t.Error("Expected file attachment header in rendered output")
 	}
@@ -273,22 +235,19 @@ func TestRenderErrorCapitalization(t *testing.T) {
 	m.style = NewStyle(*themes.DarkTheme())
 	m.width = 100
 	m.vp.SetWidth(m.width - borderOffset - chatMargin*2)
-	
+
 	entry := historyEntry{
 		role: "error",
 		items: []contentItem{
 			{kind: contentItemText, text: "something went wrong"},
 		},
 	}
-	
+
 	res := renderEntry(entry, m.style, m.width, false)
 	t.Logf("Rendered error:\n%s", res)
-	
+
 	if !strings.Contains(res, "Something went wrong") {
 		t.Error("Expected error message to be capitalized")
 	}
 }
 
-type reproStubProvider struct{}
-func (s *reproStubProvider) Info() llm.ProviderInfo { return llm.ProviderInfo{Name: "stub"} }
-func (s *reproStubProvider) Stream(ctx context.Context, req *llm.CompletionRequest) (<-chan *llm.Event, error) { return nil, nil }

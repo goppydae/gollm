@@ -1,14 +1,49 @@
 {
-  "defaultProvider": "openai",
+  "defaultProvider": "ollama",
   "defaultModel": "llama3",
-  "openAIBaseURL": "http://localhost:11434",
+  "ollamaBaseURL": "http://localhost:11434",
+
   "mode": "interactive",
-  "thinkingLevel": "off",
+  "thinkingLevel": "medium",
+  "theme": "dark",
+
   "compaction": {
     "enabled": true,
-    "reserveTokens": 16384,
-    "keepRecentTokens": 20000
+    "reserveTokens": 4096,
+    "keepRecentTokens": 8192
   },
+
   "sessionDir": "~/.gollm/sessions",
-  "plugins": ["~/.gollm/plugins"]
+  "extensions": ["~/.gollm/extensions"],
+  "pythonPath": "python3",
+
+  "skillPaths": [],
+  "promptTemplatePaths": [],
+  "themePaths": [],
+
+  "models": [],
+
+  "systemPrompt": "",
+
+  "disabledTools": false,
+  "enabledTools": [],
+
+  "noContextFiles": false,
+  "noExtensions": false,
+  "noSkills": false,
+  "noPromptTemplates": false,
+  "noThemes": false,
+
+  "verbose": false,
+  "offline": false,
+  "dryRun": false,
+
+  "grpcAddr": ":50051",
+
+  "openAIBaseURL": "https://api.openai.com/v1",
+  "openAIApiKey": "",
+  "anthropicApiKey": "",
+  "anthropicApiVersion": "",
+  "googleApiKey": "",
+  "llamaCppBaseURL": "http://localhost:8080"
 }

@@ -28,6 +28,10 @@ type Session struct {
 	Thinking     string    `json:"thinkingLevel,omitempty"`
 	SystemPrompt string    `json:"systemPrompt,omitempty"`
 	Messages     []message `json:"messages,omitempty"`
+	DryRun              bool `json:"dryRun,omitempty"`
+	CompactionEnabled   bool `json:"compactionEnabled,omitempty"`
+	CompactionReserve   int  `json:"compactionReserveTokens,omitempty"`
+	CompactionKeep      int  `json:"compactionKeepRecentTokens,omitempty"`
 }
 
 // SessionSummary provides a lightweight view of a session for listings.
@@ -53,6 +57,10 @@ func (s *Session) ToTypes() *types.Session {
 		Thinking:     types.ThinkingLevel(s.Thinking),
 		SystemPrompt: s.SystemPrompt,
 		Messages:     s.Messages,
+		DryRun:              s.DryRun,
+		CompactionEnabled:   s.CompactionEnabled,
+		CompactionReserve:   s.CompactionReserve,
+		CompactionKeep:      s.CompactionKeep,
 	}
 }
 
@@ -71,7 +79,17 @@ func NewManager(baseDir string) *Manager {
 		baseDir = filepath.Join(home, ".gollm", "sessions")
 	}
 
-	cwd, _ := os.Getwd()
+	cwd, err := os.Getwd()
+	if err != nil {
+		// Fall back to home directory so session storage is at least predictable.
+		home, _ := os.UserHomeDir()
+		cwd = home
+	}
+	// Resolve symlinks so the same project accessed via different paths maps to
+	// the same session directory.
+	if resolved, err := filepath.EvalSymlinks(cwd); err == nil {
+		cwd = resolved
+	}
 	projectDir := filepath.Join(baseDir, projectPath(cwd))
 
 	return &Manager{
@@ -205,6 +223,10 @@ func (m *Manager) copyFrom(target, source *Session) {
 	target.Provider = source.Provider
 	target.Thinking = source.Thinking
 	target.SystemPrompt = source.SystemPrompt
+	target.DryRun = source.DryRun
+	target.CompactionEnabled = source.CompactionEnabled
+	target.CompactionReserve = source.CompactionReserve
+	target.CompactionKeep = source.CompactionKeep
 	target.CreatedAt = time.Now()
 	target.UpdatedAt = time.Now()
 	target.Messages = make([]message, len(source.Messages))

@@ -24,6 +24,7 @@ message ToolDefinition {
   string name = 1;
   string description = 2;
   string parameters_json_schema = 3;
+  bool is_read_only = 4;
 }
 
 message ToolsResponse {

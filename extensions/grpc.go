@@ -81,6 +81,7 @@ func (m *GRPCClient) Tools() []tools.Tool {
 			name:        def.Name,
 			description: def.Description,
 			schema:      json.RawMessage(def.ParametersJsonSchema),
+			readOnly:    def.IsReadOnly,
 		})
 	}
 	return result
@@ -190,12 +191,13 @@ type RemoteTool struct {
 	name        string
 	description string
 	schema      json.RawMessage
+	readOnly    bool
 }
 
 func (t *RemoteTool) Name() string            { return t.name }
 func (t *RemoteTool) Description() string     { return t.description }
 func (t *RemoteTool) Schema() json.RawMessage { return t.schema }
-func (t *RemoteTool) IsReadOnly() bool        { return false }
+func (t *RemoteTool) IsReadOnly() bool        { return t.readOnly }
 
 func (t *RemoteTool) Execute(ctx context.Context, args json.RawMessage, update tools.ToolUpdate) (*tools.ToolResult, error) {
 	resp, err := t.client.ExecuteTool(ctx, &proto.ExecuteToolRequest{
@@ -233,6 +235,7 @@ func (m *GRPCServer) Tools(ctx context.Context, _ *proto.Empty) (*proto.ToolsRes
 			Name:                 td.Name,
 			Description:          td.Description,
 			ParametersJsonSchema: string(td.Schema),
+			IsReadOnly:           td.IsReadOnly,
 		})
 	}
 	return &proto.ToolsResponse{Tools: defs}, nil

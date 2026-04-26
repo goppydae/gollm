@@ -2,6 +2,7 @@ package main
  
 
 import (
+	"context"
 	"fmt"
 	"html"
 	"os"
@@ -15,10 +16,12 @@ import (
 	"github.com/goppydae/gollm/internal/config"
 	"github.com/goppydae/gollm/internal/contextfiles"
 	"github.com/goppydae/gollm/internal/llm"
+	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
 	"github.com/goppydae/gollm/internal/modes"
 	"github.com/goppydae/gollm/internal/modes/interactive"
 	"github.com/goppydae/gollm/internal/prompts"
 	"github.com/goppydae/gollm/internal/session"
+	"github.com/goppydae/gollm/internal/service"
 	"github.com/goppydae/gollm/internal/skills"
 	"github.com/goppydae/gollm/internal/themes"
 )
@@ -281,51 +284,97 @@ func rootCmd() *cobra.Command {
 			}
 			registry := config.BuildToolRegistry(cfg)
 			mgr := session.NewManager(cfg.SessionDir)
-
-			// Load extensions
-			var exts []agent.Extension
-			extLoader := extensions.NewLoader(cfg.Extensions, cfg.PythonPath)
-			exts = append(exts, extLoader.LoadOrLog()...)
-			defer extLoader.Cleanup()
-
-			// Load skills
-			skillDirs := append([]string{}, cfg.Extensions...)
-			skillDirs = append(skillDirs, skills.DefaultDirs()...)
-			skillDirs = append(skillDirs, cfg.SkillPaths...)
-			// If noSkills is true, we only use explicit SkillPaths and Extensions
-			if noSkills {
-				skillDirs = append([]string{}, cfg.Extensions...)
-				skillDirs = append(skillDirs, cfg.SkillPaths...)
-			}
-			skillLoader := extensions.NewSkillLoader(skillDirs)
-			if sks, lerr := skillLoader.Load(); lerr == nil {
-				exts = append(exts, sks...)
-			}
-
-			preloadSession := resolveSession(cmd, continueSession, resumeSession, forkSession, sessionPath)
-
-			var handler modes.Handler
-			switch mode {
-			case "json", "print", "text":
-				handler = modes.NewPrintHandler(prov, registry, mgr, exts,
-					modes.PrintOptions{
-						NoSession:      noSession,
-						PreloadSession: preloadSession,
-						SystemPrompt:   cfg.SystemPrompt,
-						ThinkingLevel:  cfg.ThinkingLevel,
-						JSON:           mode == "json",
-					})
-			case "grpc":
-				handler = modes.NewGRPCHandler(prov, registry, mgr, exts, cfg.GRPCAddr)
-			case "interactive":
-				handler = modes.NewInteractiveHandler(prov, registry, mgr, cfg, cfg.Theme, exts,
-					interactive.Options{
-						NoSession:      noSession,
-						PreloadSession: preloadSession,
-					})
-			default:
-				return fmt.Errorf("unknown mode: %s", mode)
-			}
+ 
+ 			// Load extensions
+ 			var exts []agent.Extension
+ 			extLoader := extensions.NewLoader(cfg.Extensions, cfg.PythonPath)
+ 			exts = append(exts, extLoader.LoadOrLog()...)
+ 			defer extLoader.Cleanup()
+ 
+ 			// Load skills
+ 			skillDirs := append([]string{}, cfg.Extensions...)
+ 			skillDirs = append(skillDirs, skills.DefaultDirs()...)
+ 			skillDirs = append(skillDirs, cfg.SkillPaths...)
+ 			// If noSkills is true, we only use explicit SkillPaths and Extensions
+ 			if noSkills {
+ 				skillDirs = append([]string{}, cfg.Extensions...)
+ 				skillDirs = append(skillDirs, cfg.SkillPaths...)
+ 			}
+ 			skillLoader := extensions.NewSkillLoader(skillDirs)
+ 			if sks, lerr := skillLoader.Load(); lerr == nil {
+ 				exts = append(exts, sks...)
+ 			}
+ 
+ 			// Initialize Backend Service
+ 			svc := service.New(context.Background(), prov, registry, mgr, exts).WithConfig(cfg)
+ 
+ 			// Initialize In-Process Client
+ 			client, cleanup, err := service.NewInProcessClient(svc)
+ 			if err != nil {
+ 				return fmt.Errorf("init in-process client: %w", err)
+ 			}
+ 			defer cleanup()
+ 
+ 			preloadSession := resolveSession(cmd, continueSession, resumeSession, forkSession, sessionPath)
+ 			sessionID := ""
+ 
+ 			// Initial session setup via service
+ 			if !noSession {
+ 				var resp *pb.NewSessionResponse
+ 				var err error
+ 				switch {
+ 				case strings.HasPrefix(preloadSession, "fork:"):
+ 					id := strings.TrimPrefix(preloadSession, "fork:")
+ 					fresp, ferr := client.ForkSession(context.Background(), &pb.ForkSessionRequest{SessionId: id})
+ 					if ferr == nil {
+ 						sessionID = fresp.SessionId
+ 					}
+ 				case preloadSession == "continue":
+ 					list, lerr := mgr.List()
+ 					if lerr != nil {
+ 						fmt.Fprintf(os.Stderr, "warning: could not list sessions to continue: %v\n", lerr)
+ 					} else if len(list) == 0 {
+ 						fmt.Fprintln(os.Stderr, "warning: no sessions found to continue; starting a new session")
+ 					} else {
+ 						sessionID = list[len(list)-1]
+ 					}
+ 				case strings.HasPrefix(preloadSession, "resume:"):
+ 					sessionID = strings.TrimPrefix(preloadSession, "resume:")
+ 				case preloadSession != "" && preloadSession != "resume":
+ 					sessionID = preloadSession
+ 				}
+ 
+ 				if sessionID == "" {
+ 					resp, err = client.NewSession(context.Background(), &pb.NewSessionRequest{})
+ 					if err == nil {
+ 						sessionID = resp.SessionId
+ 					}
+ 				}
+ 			}
+ 
+ 			var handler modes.Handler
+ 			switch mode {
+ 			case "json", "print", "text":
+ 				handler = modes.NewPrintHandler(client, sessionID,
+ 					modes.PrintOptions{
+ 						NoSession:      noSession,
+ 						PreloadSession: preloadSession,
+ 						SystemPrompt:   cfg.SystemPrompt,
+ 						ThinkingLevel:  cfg.ThinkingLevel,
+ 						JSON:           mode == "json",
+						DryRun:         dryRun,
+ 					})
+ 			case "grpc":
+ 				handler = modes.NewGRPCHandler(svc, cfg.GRPCAddr)
+ 			case "interactive":
+ 				handler = modes.NewInteractiveHandler(client, sessionID, cfg, cfg.Theme,
+ 					interactive.Options{
+ 						NoSession:      noSession,
+ 						PreloadSession: preloadSession,
+ 					})
+ 			default:
+ 				return fmt.Errorf("unknown mode: %s", mode)
+ 			}
 
 			if cfg.Offline && (cfg.Provider == "openai" || cfg.Provider == "anthropic" || cfg.Provider == "google") {
 				return fmt.Errorf("provider %q requires network access, but --offline is enabled", cfg.Provider)

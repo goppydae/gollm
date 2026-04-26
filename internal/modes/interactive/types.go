@@ -12,7 +12,7 @@ import (
 	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/viewport"
 
-	"github.com/goppydae/gollm/internal/agent"
+	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
 	"github.com/goppydae/gollm/internal/config"
 	"github.com/goppydae/gollm/internal/session"
 	"github.com/goppydae/gollm/internal/themes"
@@ -30,8 +30,8 @@ const (
 	msgWidthRatio = 0.8 // message boxes use 80% of chat width
 )
 
-// agentEventMsg wraps an agent.Event for delivery through bubbletea.
-type agentEventMsg struct{ ev agent.Event }
+// agentEventMsg wraps a pb.AgentEvent for delivery through bubbletea.
+type agentEventMsg struct{ ev *pb.AgentEvent }
 
 
 // model holds the TUI state.
@@ -44,11 +44,14 @@ type model struct {
 	sessionMgr *session.Manager
 	config     *config.Config
 
-	// Agent integration
-	ag          *agent.Agent
+	// gRPC client
+	client    pb.AgentServiceClient
+	sessionID string
+
+	// Context / cancellation
 	ctx         context.Context
 	cancel      context.CancelFunc
-	eventCh           <-chan agent.Event
+	eventCh     chan *pb.AgentEvent
 
 	// Agent state
 	isRunning         bool

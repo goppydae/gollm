@@ -21,7 +21,7 @@ func BuildProvider(cfg *Config) (llm.Provider, error) {
 		if cfg.AnthropicAPIKey == "" {
 			return nil, fmt.Errorf("provider %q requires anthropicApiKey in config or ANTHROPIC_API_KEY env var", cfg.Provider)
 		}
-		return llm.NewAnthropicProvider(cfg.AnthropicAPIKey, cfg.Model), nil
+		return llm.NewAnthropicProvider(cfg.AnthropicAPIKey, cfg.Model).WithAPIVersion(cfg.AnthropicAPIVersion), nil
 	case "google":
 		if cfg.GoogleAPIKey == "" {
 			return nil, fmt.Errorf("provider %q requires googleApiKey in config or GOOGLE_API_KEY env var", cfg.Provider)

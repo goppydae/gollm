@@ -1,6 +1,6 @@
 # Tutorial: Creating Extensions
 
-Extensions let you add new behaviors to `gollm` beyond what's possible with skills and prompt templates. They can modify the system prompt before every turn, add custom tools the agent can call, and intercept tool results. Extensions run as separate processes and communicate with `gollm` via gRPC.
+Extensions let you add new behaviors to `gollm` beyond what's possible with skills and prompt templates. They can modify the system prompt before every turn, add custom tools the agent can call, and intercept or observe tool results. Extensions run as separate processes and communicate with `gollm` via gRPC.
 
 ---
 
@@ -31,45 +31,54 @@ Or globally in `~/.gollm/config.json`.
 
 Place your extension binary or script in the configured directory. `gollm` will automatically discover and launch it on startup.
 
+You can also load a specific extension at runtime with the `--extension` flag:
+
+```bash
+glm --extension /path/to/my-extension "Your prompt here"
+```
+
 ---
 
-## The Extension Interface (gRPC)
+## The Plugin Interface
 
-Every extension must implement the `Extension` gRPC service:
+Every Go extension implements the `extensions.Plugin` interface from `github.com/goppydae/gollm/extensions`:
 
-```protobuf
-service Extension {
-  rpc Name(Empty) returns (NameResponse);
-  rpc Tools(Empty) returns (ToolsResponse);
-  rpc BeforePrompt(BeforePromptRequest) returns (BeforePromptResponse);
-  rpc AfterToolCall(AfterToolCallRequest) returns (AfterToolCallResponse);
-  rpc ModifySystemPrompt(ModifySystemPromptRequest) returns (ModifySystemPromptResponse);
+```go
+type Plugin interface {
+    Name() string
+    Tools() []ToolDefinition
+    ExecuteTool(ctx context.Context, name string, args json.RawMessage) ToolResult
+    ModifySystemPrompt(prompt string) string
+    BeforePrompt(ctx context.Context, state AgentState) AgentState
+    BeforeToolCall(ctx context.Context, call ToolCall, args json.RawMessage) (ToolResult, bool)
+    AfterToolCall(ctx context.Context, call ToolCall, result ToolResult) ToolResult
 }
 ```
 
-| RPC | When called | Purpose |
+| Method | When called | Purpose |
 |---|---|---|
 | `Name` | On load | Returns the extension's identifier string |
 | `Tools` | On load | Returns tool definitions the agent can call |
-| `BeforePrompt` | Before each LLM call | Modify agent state (e.g. append to system prompt) |
+| `ExecuteTool` | On tool call | Executes a tool registered by this extension |
+| `ModifySystemPrompt` | Before each turn | Augment or replace the system prompt |
+| `BeforePrompt` | Before each LLM call | Modify agent state (model, prompt, etc.) |
+| `BeforeToolCall` | Before each tool execution | **Intercept or block tool calls** |
 | `AfterToolCall` | After each tool execution | Observe or modify tool results |
-| `ModifySystemPrompt` | On load / config change | Initial system prompt modification |
 
-You only need to implement the RPCs relevant to your extension. Unimplemented RPCs can return empty responses.
+`BeforeToolCall` is the interception point: return `(result, true)` to prevent the built-in tool from running and substitute your own result; return `(ToolResult{}, false)` to allow normal execution.
+
+You only need to override the methods relevant to your extension. Use `extensions.NoopPlugin` as a base to get no-op defaults for everything else.
 
 ---
 
 ## The Handshake
 
-Extensions must implement the [hashicorp/go-plugin](https://github.com/hashicorp/go-plugin) handshake:
+Extensions must use the [hashicorp/go-plugin](https://github.com/hashicorp/go-plugin) handshake provided by the `extensions` package:
 
+```go
+extensions.HandshakeConfig  // plugin.HandshakeConfig value to pass to plugin.Serve
+extensions.ExtensionPlugin  // the plugin.Plugin implementation — set Impl to your Plugin
 ```
-MAGIC_COOKIE_KEY:   GOLLM_EXTENSION
-MAGIC_COOKIE_VALUE: v1.0.0
-Protocol version:   1
-```
-
-The extension process reads these values from environment variables set by the loader and responds via gRPC on a negotiated port.
 
 ---
 
@@ -92,57 +101,31 @@ package main
 
 import (
     "context"
+    "encoding/json"
     "fmt"
     "os/exec"
     "strings"
 
-    "github.com/hashicorp/go-plugin"
-    "google.golang.org/grpc"
-
-    // Import the glm extension proto from your vendored copy or replace
-    // with the generated types from gollm/extensions/gen
-    proto "github.com/goppydae/gollm/extensions/gen"
+    goplugin "github.com/hashicorp/go-plugin"
+    "github.com/goppydae/gollm/extensions"
 )
 
-// GitContextExtension injects the current git branch and recent commits
+// GitContextPlugin injects the current git branch and recent commits
 // into the system prompt before each turn.
-type GitContextExtension struct {
-    proto.UnimplementedExtensionServer
+type GitContextPlugin struct {
+    extensions.NoopPlugin
 }
 
-func (e *GitContextExtension) Name(ctx context.Context, _ *proto.Empty) (*proto.NameResponse, error) {
-    return &proto.NameResponse{Name: "git-context"}, nil
-}
-
-func (e *GitContextExtension) Tools(ctx context.Context, _ *proto.Empty) (*proto.ToolsResponse, error) {
-    return &proto.ToolsResponse{}, nil
-}
-
-func (e *GitContextExtension) BeforePrompt(ctx context.Context, req *proto.BeforePromptRequest) (*proto.BeforePromptResponse, error) {
+func (p *GitContextPlugin) BeforePrompt(_ context.Context, state extensions.AgentState) extensions.AgentState {
     branch := gitOutput("rev-parse", "--abbrev-ref", "HEAD")
     status := gitOutput("status", "--short")
     log := gitOutput("log", "--oneline", "-5")
 
-    addition := fmt.Sprintf(
-        "\n\n<git_context>\nBranch: %s\n\nRecent commits:\n%s\n\nWorking tree status:\n%s\n</git_context>",
+    state.SystemPrompt += fmt.Sprintf(
+        "\n\n<git_context>\nBranch: %s\n\nRecent commits:\n%s\n\nWorking tree:\n%s\n</git_context>",
         branch, log, status,
     )
-
-    newState := req.State
-    if newState == nil {
-        newState = &proto.AgentState{}
-    }
-    newState.Prompt += addition
-
-    return &proto.BeforePromptResponse{State: newState}, nil
-}
-
-func (e *GitContextExtension) AfterToolCall(ctx context.Context, req *proto.AfterToolCallRequest) (*proto.AfterToolCallResponse, error) {
-    return &proto.AfterToolCallResponse{Result: req.Result}, nil
-}
-
-func (e *GitContextExtension) ModifySystemPrompt(ctx context.Context, req *proto.ModifySystemPromptRequest) (*proto.ModifySystemPromptResponse, error) {
-    return &proto.ModifySystemPromptResponse{ModifiedPrompt: req.CurrentPrompt}, nil
+    return state
 }
 
 func gitOutput(args ...string) string {
@@ -153,31 +136,15 @@ func gitOutput(args ...string) string {
     return strings.TrimSpace(string(out))
 }
 
-// Plugin wrapper for hashicorp/go-plugin
-type ExtensionPlugin struct {
-    Impl *GitContextExtension
-}
-
-func (p *ExtensionPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
-    proto.RegisterExtensionServer(s, p.Impl)
-    return nil
-}
-
-func (p *ExtensionPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
-    return nil, nil
-}
-
 func main() {
-    plugin.Serve(&plugin.ServeConfig{
-        HandshakeConfig: plugin.HandshakeConfig{
-            ProtocolVersion:  1,
-            MagicCookieKey:   "GOLLM_EXTENSION",
-            MagicCookieValue: "v1.0.0",
+    goplugin.Serve(&goplugin.ServeConfig{
+        HandshakeConfig: extensions.HandshakeConfig,
+        Plugins: goplugin.PluginSet{
+            "extension": &extensions.ExtensionPlugin{Impl: &GitContextPlugin{
+                NoopPlugin: extensions.NoopPlugin{NameStr: "git-context"},
+            }},
         },
-        Plugins: map[string]plugin.Plugin{
-            "extension": &ExtensionPlugin{Impl: &GitContextExtension{}},
-        },
-        GRPCServer: plugin.DefaultGRPCServer,
+        GRPCServer: goplugin.DefaultGRPCServer,
     })
 }
 ```
@@ -202,11 +169,77 @@ The `git-context` binary in `.gollm/extensions/` will be auto-discovered and loa
 
 ---
 
+## Example: Extension with Custom Tools
+
+Extensions can contribute tools the agent calls just like built-in tools:
+
+```go
+type CounterPlugin struct {
+    extensions.NoopPlugin
+}
+
+func (p *CounterPlugin) Tools() []extensions.ToolDefinition {
+    return []extensions.ToolDefinition{
+        {
+            Name:        "count_lines",
+            Description: "Count lines in a string",
+            Schema:      json.RawMessage(`{"type":"object","properties":{"text":{"type":"string"}},"required":["text"]}`),
+            IsReadOnly:  true, // read-only tools are allowed through dry-run mode and sandbox extensions
+        },
+    }
+}
+
+// ToolDefinition fields:
+//   Name        — tool name as the LLM will call it
+//   Description — shown to the LLM in its tool list
+//   Schema      — JSON Schema object describing the input parameters
+//   IsReadOnly  — true = tool never mutates state; dry-run mode and sandbox
+//                 extensions use this to decide whether to allow the call
+
+func (p *CounterPlugin) ExecuteTool(_ context.Context, name string, args json.RawMessage) extensions.ToolResult {
+    if name != "count_lines" {
+        return extensions.ToolResult{Content: "unknown tool", IsError: true}
+    }
+    var input struct{ Text string `json:"text"` }
+    _ = json.Unmarshal(args, &input)
+    n := strings.Count(input.Text, "\n") + 1
+    return extensions.ToolResult{Content: fmt.Sprintf("%d lines", n)}
+}
+```
+
+---
+
+## Example: Intercepting Tool Calls (Sandbox)
+
+`BeforeToolCall` lets you block or replace any built-in tool call:
+
+```go
+type SandboxPlugin struct {
+    extensions.NoopPlugin
+    AllowedDir string
+}
+
+func (p *SandboxPlugin) BeforeToolCall(_ context.Context, call extensions.ToolCall, args json.RawMessage) (extensions.ToolResult, bool) {
+    // Block write/edit/bash for paths outside AllowedDir
+    var input struct{ Path string `json:"path"` }
+    _ = json.Unmarshal(args, &input)
+    if input.Path != "" && !strings.HasPrefix(input.Path, p.AllowedDir) {
+        return extensions.ToolResult{
+            Content: fmt.Sprintf("blocked: %s is outside %s", input.Path, p.AllowedDir),
+            IsError: true,
+        }, true // true = intercept, don't run the real tool
+    }
+    return extensions.ToolResult{}, false // false = allow normal execution
+}
+```
+
+[`examples/sandbox/`](../examples/sandbox/) is a complete, standalone implementation of this pattern.
+
+---
+
 ## Example: Python Extension
 
-Python extensions work the same way but are invoked with the Python interpreter. You'll need the `grpc` and `go-plugin` Python libraries.
-
-> **Note:** Python extension support requires `grpcio` and a compatible proto stub. The proto source is at `extensions/proto/extension.proto` in the glm repository.
+Python extensions work the same way but are invoked with the Python interpreter. You'll need the `grpcio` and `grpcio-tools` Python libraries and the generated proto stubs.
 
 ### 1. Generate Python stubs
 
@@ -239,29 +272,16 @@ class TicketContextServicer(extension_pb2_grpc.ExtensionServicer):
         return extension_pb2.ToolsResponse(tools=[])
 
     def BeforePrompt(self, request, context):
-        # Example: inject the current JIRA ticket from the branch name
         branch = subprocess.check_output(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            text=True
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], text=True
         ).strip()
-
-        # Extract ticket ID from branch name (e.g. "feature/PROJ-123-my-feature")
-        ticket = ""
-        parts = branch.split("/")
-        if len(parts) > 1:
-            segment = parts[-1].upper()
-            for part in segment.split("-"):
-                if part.isdigit() and ticket:
-                    ticket = ticket + "-" + part
-                    break
-                elif part.isalpha():
-                    ticket = part
-
         state = request.state or extension_pb2.AgentState()
-        if ticket:
-            state.prompt += f"\n\n<ticket>Current work is related to ticket: {ticket}</ticket>"
-
+        state.system_prompt += f"\n\n<branch>Current branch: {branch}</branch>"
         return extension_pb2.BeforePromptResponse(state=state)
+
+    def BeforeToolCall(self, request, context):
+        # Allow all tool calls through
+        return extension_pb2.BeforeToolCallResponse(intercept=False)
 
     def AfterToolCall(self, request, context):
         return extension_pb2.AfterToolCallResponse(result=request.result)
@@ -273,7 +293,7 @@ class TicketContextServicer(extension_pb2_grpc.ExtensionServicer):
 
 
 def serve():
-    # hashicorp/go-plugin protocol: read port from env
+    # hashicorp/go-plugin negotiates the gRPC port via stdout
     port = os.environ.get("PLUGIN_GRPC_PORT", "1234")
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     extension_pb2_grpc.add_ExtensionServicer_to_server(TicketContextServicer(), server)
@@ -286,7 +306,7 @@ if __name__ == "__main__":
     serve()
 ```
 
-> **Tip:** For a working Python extension, consult the [hashicorp/go-plugin Python helper](https://github.com/hashicorp/go-plugin/tree/main/examples) for the correct handshake implementation. The protocol negotiates the gRPC port via stdout.
+> **Tip:** Consult the [hashicorp/go-plugin examples](https://github.com/hashicorp/go-plugin/tree/main/examples) for the correct stdout handshake implementation. Debug output must go to stderr to avoid corrupting the protocol.
 
 ---
 
@@ -301,9 +321,13 @@ glm startup
   → Calls Name() and Tools() once
 
 Per prompt turn:
-  → Calls BeforePrompt() — extension can modify system prompt
+  → ModifySystemPrompt() — extension modifies the system prompt
+  → BeforePrompt() — extension can further modify agent state
   → Agent runs, calls tools
-  → Per tool call: AfterToolCall() — extension can observe/modify result
+  → Per tool call:
+      BeforeToolCall() — extension can intercept and short-circuit
+      [tool executes if not intercepted]
+      AfterToolCall() — extension can observe/modify result
 
 glm shutdown:
   → Loader kills all extension subprocesses
@@ -313,32 +337,48 @@ glm shutdown:
 
 ## Go In-Process Extension (Advanced)
 
-If your extension is written in Go and you control the `gollm` build, you can implement the `agent.Extension` interface directly and register it without the gRPC overhead:
+If your extension is written in Go and you control the build, you can implement `agent.Extension` directly and register it without the gRPC overhead. Use `agent.NoopExtension` as a base:
 
 ```go
-// internal/agent/extension.go interface:
-type Extension interface {
-    Name() string
-    Tools() []tools.Tool
-    BeforePrompt(ctx context.Context, state *AgentState) *AgentState
-}
-```
+import (
+    "context"
+    "encoding/json"
 
-Use the `NoopExtension` embed for methods you don't need:
+    "github.com/goppydae/gollm/internal/agent"
+    "github.com/goppydae/gollm/internal/tools"
+)
 
-```go
 type MyExtension struct {
     agent.NoopExtension
 }
 
-func (e *MyExtension) BeforePrompt(ctx context.Context, state *agent.AgentState) *agent.AgentState {
-    newState := *state
-    newState.SystemPrompt += "\n\nAlways respond in bullet points."
-    return &newState
+func (e *MyExtension) ModifySystemPrompt(prompt string) string {
+    return prompt + "\n\nAlways respond in bullet points."
+}
+
+func (e *MyExtension) BeforeToolCall(ctx context.Context, call *agent.ToolCall, args json.RawMessage) (*tools.ToolResult, bool) {
+    // Block the bash tool entirely
+    if call.Name == "bash" {
+        return &tools.ToolResult{Content: "bash is disabled", IsError: true}, true
+    }
+    return nil, false
 }
 ```
 
-Pass it to `ag.SetExtensions()` via the SDK or directly from `cmd/gollm`.
+The full `agent.Extension` interface:
+
+```go
+type Extension interface {
+    Name() string
+    Tools() []tools.Tool
+    BeforePrompt(ctx context.Context, state *agent.AgentState) *agent.AgentState
+    BeforeToolCall(ctx context.Context, call *agent.ToolCall, args json.RawMessage) (*tools.ToolResult, bool)
+    AfterToolCall(ctx context.Context, call *agent.ToolCall, result *tools.ToolResult) *tools.ToolResult
+    ModifySystemPrompt(prompt string) string
+}
+```
+
+Pass the extension via `ag.SetExtensions()` from the SDK or directly in `cmd/glm`.
 
 ---
 

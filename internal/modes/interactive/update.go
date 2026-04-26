@@ -4,17 +4,17 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
+	"charm.land/bubbles/v2/progress"
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/stopwatch"
-	"charm.land/bubbles/v2/progress"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/goppydae/gollm/internal/config"
+	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
 	"github.com/goppydae/gollm/internal/prompts"
 	"github.com/goppydae/gollm/internal/skills"
-	"sort"
 )
 
 // Update implements tea.Model.Update.
@@ -79,8 +79,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		entry := historyEntry{role: "user", items: []contentItem{{kind: contentItemText, text: prompt}}}
 		m.history = append(m.history, entry)
 		m.newContext()
-		err := m.ag.Prompt(m.ctx, prompt)
-		if err != nil {
+		if err := m.promptGRPC(m.ctx, prompt); err != nil {
 			m.history = append(m.history, historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: err.Error()}}})
 		}
 		cmd = listenForEvent(m.eventCh)
@@ -89,12 +88,37 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.stopwatch, cmd = m.stopwatch.Update(msg)
 	}
 
-	// Safety check: if busy, ensure we are listening for events
 	if m.isRunning || m.isCompacting.Load() {
 		cmd = tea.Batch(cmd, listenForEvent(m.eventCh))
 	}
 
 	return m, cmd
+}
+
+// promptGRPC starts a Prompt RPC and drains events into eventCh in a goroutine.
+func (m *model) promptGRPC(ctx context.Context, text string, imgAttachments ...*pb.ImageAttachment) error {
+	stream, err := m.client.Prompt(ctx, &pb.PromptRequest{
+		SessionId: m.sessionID,
+		Message:   text,
+		Images:    imgAttachments,
+	})
+	if err != nil {
+		return err
+	}
+	go func() {
+		for {
+			ev, recvErr := stream.Recv()
+			if recvErr != nil {
+				return
+			}
+			select {
+			case m.eventCh <- ev:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return nil
 }
 
 // onResize simulates a WindowSizeMsg — used by tests.
@@ -107,13 +131,11 @@ func (m *model) onResize(width, height int) {
 	m.vp.SetHeight(m.vpHeight())
 }
 
-// currentInputHeight returns the textarea height needed for the current content.
 func (m *model) currentInputHeight() int {
 	lines := strings.Count(m.input.Value(), "\n") + 1
 	if lines < inputHeight {
 		return inputHeight
 	}
-	// Cap input height to roughly 30% of terminal height
 	maxH := m.height / 3
 	if maxH < inputHeight {
 		maxH = inputHeight
@@ -124,7 +146,6 @@ func (m *model) currentInputHeight() int {
 	return lines
 }
 
-// vpHeight returns the correct viewport height given current model state.
 func (m *model) vpHeight() int {
 	pickerH := 0
 	if m.picker.Open {
@@ -140,9 +161,8 @@ func (m *model) vpHeight() int {
 func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	key := msg.Key()
 
-	// Ctrl+C: abort agent and clear input
 	if key.Mod == tea.ModCtrl && key.Code == 'c' {
-		m.ag.Abort()
+		_, _ = m.client.Abort(context.Background(), &pb.AbortRequest{SessionId: m.sessionID})
 		m.cancel()
 		m.input.SetValue("")
 		m.input.SetHeight(inputHeight)
@@ -152,18 +172,14 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, listenForEvent(m.eventCh)
 	}
 
-
-	// Modal is open
 	if m.modal.visible {
 		return m.handleModalKey(msg)
 	}
 
-	// Picker is open
 	if m.picker.Open {
 		return m.handlePickerKey(msg)
 	}
 
-	// Escape: close modal, abort running agent, or close picker
 	if key.Code == tea.KeyEscape {
 		if m.modal.visible {
 			m.modal.close()
@@ -174,23 +190,19 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.vp.SetHeight(m.vpHeight())
 			return m, listenForEvent(m.eventCh)
 		}
-		isCompacting := m.isCompacting.Load()
-		if m.isRunning || isCompacting {
-			m.ag.Abort()
-			m.cancel() // cancel context to unblock LLM stream
+		if m.isRunning || m.isCompacting.Load() {
+			_, _ = m.client.Abort(context.Background(), &pb.AbortRequest{SessionId: m.sessionID})
+			m.cancel()
 			return m, listenForEvent(m.eventCh)
 		}
 		return m, nil
 	}
-	
-	// Block other input if compacting
+
 	if m.isCompacting.Load() {
 		return m, listenForEvent(m.eventCh)
 	}
 
-	// Up: cycle back in history
 	if Matches(msg, K.Up()) {
-		// Only trigger history if we are on the first line
 		if m.input.Line() > 0 {
 			var cmd tea.Cmd
 			m.input, cmd = m.input.Update(msg)
@@ -213,9 +225,7 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Down: cycle forward in history
 	if Matches(msg, K.Down()) {
-		// Only trigger history if we are on the last line
 		if m.input.Line() < m.input.LineCount()-1 {
 			var cmd tea.Cmd
 			m.input, cmd = m.input.Update(msg)
@@ -236,7 +246,6 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Shift+Enter: insert newline
 	if Matches(msg, K.Shift("enter")) {
 		m.input.InsertString("\n")
 		m.input.SetHeight(m.currentInputHeight())
@@ -244,20 +253,17 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Ctrl+Enter: queue follow-up message
 	if Matches(msg, K.Ctrl("enter")) {
 		if m.input.Value() == "" {
 			return m, nil
 		}
 		raw := m.input.Value()
 
-		// Add to prompt history
 		if raw != "" && (len(m.promptHistory) == 0 || m.promptHistory[len(m.promptHistory)-1] != raw) {
 			m.promptHistory = append(m.promptHistory, raw)
 		}
 		m.historyIndex = -1
 		m.draftInput = ""
-
 		m.input.SetValue("")
 		m.input.SetHeight(inputHeight)
 		m.userScrolled = false
@@ -273,50 +279,52 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.history = append(m.history, entry)
 		}
 		if m.isRunning {
-			m.ag.FollowUp(raw)
+			_, _ = m.client.FollowUp(context.Background(), &pb.FollowUpRequest{
+				SessionId: m.sessionID,
+				Message:   raw,
+			})
 		} else {
 			m.newContext()
-			err := m.ag.Prompt(m.ctx, raw)
-			if err != nil {
+			if err := m.promptGRPC(m.ctx, raw); err != nil {
 				m.history = append(m.history, historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: err.Error()}}})
 			}
 		}
 		return m, listenForEvent(m.eventCh)
 	}
 
-	// Enter: send message or process slash command (steer if running)
 	if key.Code == tea.KeyEnter && key.Mod == 0 {
 		if m.input.Value() == "" {
 			return m, nil
 		}
 		raw := m.input.Value()
 
-		// Add to prompt history
 		if raw != "" && (len(m.promptHistory) == 0 || m.promptHistory[len(m.promptHistory)-1] != raw) {
 			m.promptHistory = append(m.promptHistory, raw)
 		}
 		m.historyIndex = -1
 		m.draftInput = ""
-
 		m.input.SetValue("")
 		m.input.SetHeight(inputHeight)
 		m.userScrolled = false
 		m.vp.GotoBottom()
 		m.vp.SetHeight(m.vpHeight())
 
-		// Check for slash command
 		if cmd := parseSlashCommand(raw); cmd != nil && knownCommand(cmd.name) {
 			isBusy := m.isRunning || m.isCompacting.Load()
 			if isBusy && (cmd.name == "new" || cmd.name == "resume" || cmd.name == "import" || cmd.name == "tree" || cmd.name == "fork" || cmd.name == "clone" || cmd.name == "model" || cmd.name == "compact") {
 				m.history = append(m.history, historyEntry{role: "warning", items: []contentItem{{kind: contentItemText, text: fmt.Sprintf("Cannot use /%s while agent is busy. Abort first with Esc.", cmd.name)}}})
 				return m.refreshViewport(), listenForEvent(m.eventCh)
 			}
-			result, err := handleSlashCommand(cmd, m.sessionMgr, m.ag, m.config)
+			result, err := handleSlashCommand(cmd, m.client, &m.sessionID, m.sessionMgr, m.config)
 			if err != nil {
 				m.history = append(m.history, historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: err.Error()}}})
 			} else if result != nil {
+				if result.newSessionID != "" {
+					m.sessionID = result.newSessionID
+					m.newContext()
+				}
 				if result.syncHistory {
-					m.syncHistoryFromAgent()
+					m.syncHistoryFromService()
 				}
 				if len(result.historyEntry.items) > 0 {
 					m.history = append(m.history, result.historyEntry)
@@ -324,16 +332,19 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				if result.modalKind != modalNone {
 					switch result.modalKind {
 					case modalStats:
-						stats := m.ag.GetStats()
-						stats.SessionFile = m.sessionMgr.SessionPath(stats.SessionID)
+						stats := m.getAgentStats()
 						m.modal.openStatsModal(stats, m.style)
 					case modalConfig:
+						anthropicKeyStr := "(no key)"
+						if m.config.AnthropicAPIKey != "" {
+							anthropicKeyStr = "set"
+						}
 						m.modal.openConfigModal(m.modelName, m.provider, m.thinking, m.config.Theme, "interactive",
-							m.config.OllamaBaseURL, m.config.OpenAIBaseURL, "...", m.config.LlamaCppBaseURL,
+							m.config.OllamaBaseURL, m.config.OpenAIBaseURL, anthropicKeyStr, m.config.LlamaCppBaseURL,
 							m.config.Compaction.Enabled, m.config.Compaction.ReserveTokens, m.config.Compaction.KeepRecentTokens, m.style)
 					case modalTree:
 						if len(result.modalNodes) > 0 {
-							m.modal.openTreeModal(result.modalNodes, m.ag.GetSession().ID, m.style)
+							m.modal.openTreeModal(result.modalNodes, m.sessionID, m.style)
 						} else {
 							m.openModal(modalTree)
 						}
@@ -342,27 +353,21 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 					}
 				}
 				if result.compact {
-					m.newContext()
 					m.isCompacting.Store(true)
-					return m, tea.Batch(
-						func() tea.Msg {
-							m.ag.Compact(m.ctx, m.config.Compaction.KeepRecentTokens)
-							m.isCompacting.Store(false)
-							return nil
-						},
-						listenForEvent(m.eventCh),
-					)
+					go func() {
+						_, _ = m.client.Compact(context.Background(), &pb.CompactRequest{SessionId: m.sessionID})
+						m.isCompacting.Store(false)
+						m.syncHistoryFromService()
+					}()
+					return m, tea.Batch(m.spinner.Tick, listenForEvent(m.eventCh))
 				}
 				if result.quit {
 					return m, tea.Quit
 				}
-				// expandInput: replace editor content (e.g. /prompt:name)
 				if result.expandInput != "" {
 					m.input.SetValue(result.expandInput)
 					m.input.SetHeight(m.currentInputHeight())
 				}
-
-				// sendDirectly: send text to agent immediately
 				if result.sendDirectly != "" {
 					m.userScrolled = false
 					m.vp.GotoBottom()
@@ -372,46 +377,42 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 					m.history = append(m.history, entry)
 
 					if m.isRunning {
-						m.ag.Steer(result.sendDirectly)
+						_, _ = m.client.Steer(context.Background(), &pb.SteerRequest{
+							SessionId: m.sessionID,
+							Message:   result.sendDirectly,
+						})
 					} else {
 						m.newContext()
-						err := m.ag.Prompt(m.ctx, result.sendDirectly)
-						if err != nil {
-							m.history = append(m.history, historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: err.Error()}}})
+						if promErr := m.promptGRPC(m.ctx, result.sendDirectly); promErr != nil {
+							m.history = append(m.history, historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: promErr.Error()}}})
 						}
 					}
 				}
-
-				// invokeTool: manually trigger a tool call
+				// invokeTool: send the tool args as a prompt (best-effort)
 				if result.invokeTool != "" {
 					m.userScrolled = false
 					m.vp.GotoBottom()
 					m.vp.SetHeight(m.vpHeight())
-
-					err := m.ag.InvokeTool(context.Background(), result.invokeTool, result.invokeToolArgs)
-					if err != nil {
-						entry := historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: fmt.Sprintf("Tool invocation failed: %v", err)}}}
-						m.history = append(m.history, entry)
+					m.newContext()
+					if promErr := m.promptGRPC(m.ctx, result.invokeToolArgs); promErr != nil {
+						m.history = append(m.history, historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: fmt.Sprintf("Tool invocation failed: %v", promErr)}}})
 					}
-					return m, nil
+					return m, listenForEvent(m.eventCh)
 				}
 			}
 			return m.refreshViewport(), listenForEvent(m.eventCh)
 		}
 
-		// Intercept !command / !!command inline bash
 		if strings.HasPrefix(raw, "!") {
 			bangResult, sendDirectly := HandleBangCommand(raw)
 			if sendDirectly {
-				// !! → send output directly to model
 				entry := historyEntry{role: "user", items: []contentItem{{kind: contentItemText, text: raw}}}
 				m.history = append(m.history, entry)
 				m.newContext()
-				if err := m.ag.Prompt(m.ctx, bangResult.Output); err != nil {
+				if err := m.promptGRPC(m.ctx, bangResult.Output); err != nil {
 					m.history = append(m.history, historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: err.Error()}}})
 				}
 			} else {
-				// ! → paste output into editor
 				m.input.SetValue(bangResult.Output)
 				m.input.SetHeight(m.currentInputHeight())
 			}
@@ -427,11 +428,13 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.history = append(m.history, entry)
 		}
 		if m.isRunning {
-			m.ag.Steer(raw)
+			_, _ = m.client.Steer(context.Background(), &pb.SteerRequest{
+				SessionId: m.sessionID,
+				Message:   raw,
+			})
 		} else {
 			m.newContext()
-			err := m.ag.Prompt(m.ctx, raw)
-			if err != nil {
+			if err := m.promptGRPC(m.ctx, raw); err != nil {
 				m.history = append(m.history, historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: err.Error()}}})
 				m.isRunning = false
 			}
@@ -439,7 +442,6 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.refreshViewport(), listenForEvent(m.eventCh)
 	}
 
-	// Ctrl+O: toggle all tool call expansion
 	if Matches(msg, K.Ctrl("o")) {
 		m.toolCallsExpanded = !m.toolCallsExpanded
 		m.chatContent = m.buildChatContent()
@@ -447,7 +449,6 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, listenForEvent(m.eventCh)
 	}
 
-	// Ctrl+P: cycle to the next model in the --models list
 	if Matches(msg, K.Ctrl("p")) && len(m.models) > 0 {
 		if m.isRunning {
 			m.history = append(m.history, historyEntry{role: "warning", items: []contentItem{{kind: contentItemText, text: "Cannot switch models while agent is running. Abort first with Esc."}}})
@@ -455,27 +456,32 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		m.modelIndex = (m.modelIndex + 1) % len(m.models)
 		next := strings.TrimSpace(m.models[m.modelIndex])
-		// Parse optional provider prefix
+		providerName := m.config.Provider
+		modelName := next
 		if idx := strings.IndexByte(next, '/'); idx >= 0 {
-			m.provider = next[:idx]
-			m.modelName = next[idx+1:]
-		} else {
-			m.modelName = next
+			providerName = next[:idx]
+			modelName = next[idx+1:]
 		}
-		m.config.Provider = m.provider
-		m.config.Model = m.modelName
-		newProv, provErr := config.BuildProvider(m.config)
-		if provErr != nil {
-			m.history = append(m.history, historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: provErr.Error()}}})
+		req := &pb.ConfigureSessionRequest{
+			SessionId: m.sessionID,
+			Model:     ptr(modelName),
+		}
+		if providerName != m.config.Provider {
+			req.Provider = ptr(providerName)
+		}
+		if _, err := m.client.ConfigureSession(context.Background(), req); err != nil {
+			m.history = append(m.history, historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: err.Error()}}})
 			return m.refreshViewport(), listenForEvent(m.eventCh)
 		}
-		m.ag.SetProvider(newProv)
+		m.modelName = modelName
+		m.provider = providerName
+		m.config.Provider = providerName
+		m.config.Model = modelName
 		notice := fmt.Sprintf("Switched model → %s", next)
 		m.history = append(m.history, historyEntry{role: "info", items: []contentItem{{kind: contentItemText, text: notice}}})
 		return m.refreshViewport(), listenForEvent(m.eventCh)
 	}
 
-	// Viewport scroll keys
 	if key.Code == tea.KeyUp || key.Code == tea.KeyDown ||
 		key.Code == tea.KeyPgUp || key.Code == tea.KeyPgDown {
 		var cmd tea.Cmd
@@ -484,7 +490,6 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
-	// Normal input
 	var cmd tea.Cmd
 	m.input, cmd = m.input.Update(msg)
 	m.input.SetHeight(m.currentInputHeight())
@@ -516,7 +521,6 @@ func (m *model) handlePickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.vp.SetHeight(m.vpHeight())
 				return m, nil
 			case pickerTypeSession:
-				// Items are formatted as "ID | ..."
 				parts := strings.Split(selected, " | ")
 				id := parts[0]
 				m.input.SetValue("/resume " + id)
@@ -564,7 +568,7 @@ func (m *model) handleModalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			if m.modal.cursor < m.modal.offset {
 				m.modal.offset = m.modal.cursor
 			}
-			m.modal.refreshTreeContent(m.ag.GetSession().ID, m.style)
+			m.modal.refreshTreeContent(m.sessionID, m.style)
 		}
 		return m, nil
 
@@ -574,7 +578,7 @@ func (m *model) handleModalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			if m.modal.cursor >= m.modal.offset+treePageSize {
 				m.modal.offset = m.modal.cursor - treePageSize + 1
 			}
-			m.modal.refreshTreeContent(m.ag.GetSession().ID, m.style)
+			m.modal.refreshTreeContent(m.sessionID, m.style)
 		}
 		return m, nil
 
@@ -582,16 +586,9 @@ func (m *model) handleModalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if m.modal.kind == modalTree && len(m.modal.nodes) > 0 {
 			selected := m.modal.nodes[m.modal.cursor].Node.ID
 			m.modal.close()
-
-			// Load and resume session correctly
-			sess, err := m.sessionMgr.Load(selected)
-			if err != nil {
-				m.history = append(m.history, historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: fmt.Sprintf("Failed to load session %s: %v", selected, err)}}})
-				return m.refreshViewport(), listenForEvent(m.eventCh)
-			}
-
-			m.ag.LoadSession(sess.ToTypes())
-			m.syncHistoryFromAgent()
+			m.sessionID = selected
+			m.newContext()
+			m.syncHistoryFromService()
 			m.history = append(m.history, historyEntry{role: "info", items: []contentItem{{kind: contentItemText, text: fmt.Sprintf("Switched to session: %s", selected)}}})
 			return m.refreshViewport(), listenForEvent(m.eventCh)
 		}
@@ -602,26 +599,17 @@ func (m *model) handleModalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			selected := m.modal.nodes[m.modal.cursor].Node.ID
 			m.modal.close()
 
-			// Load source session
-			source, err := m.sessionMgr.Load(selected)
-			if err != nil {
-				m.history = append(m.history, historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: fmt.Sprintf("Failed to load session %s: %v", selected, err)}}})
-				return m.refreshViewport(), listenForEvent(m.eventCh)
-			}
-
-			// Fork session
-			forked, err := m.sessionMgr.Fork(source)
+			resp, err := m.client.ForkSession(context.Background(), &pb.ForkSessionRequest{SessionId: selected})
 			if err != nil {
 				m.history = append(m.history, historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: fmt.Sprintf("Failed to fork session: %v", err)}}})
 				return m.refreshViewport(), listenForEvent(m.eventCh)
 			}
 
-			// Load new fork
-			m.ag.LoadSession(forked.ToTypes())
-			m.syncHistoryFromAgent()
+			m.sessionID = resp.SessionId
+			m.newContext()
+			m.syncHistoryFromService()
 			m.history = append(m.history, historyEntry{role: "info", items: []contentItem{{kind: contentItemText, text: fmt.Sprintf("Branched from session: %s", selected)}}})
-			m.history = append(m.history, historyEntry{role: "info", items: []contentItem{{kind: contentItemText, text: fmt.Sprintf("New session created: %s", forked.ID)}}})
-			
+			m.history = append(m.history, historyEntry{role: "info", items: []contentItem{{kind: contentItemText, text: fmt.Sprintf("New session created: %s", resp.SessionId)}}})
 			return m.refreshViewport(), listenForEvent(m.eventCh)
 		}
 	}
@@ -631,11 +619,9 @@ func (m *model) handleModalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m *model) updatePicker() *model {
 	val := m.input.Value()
 
-	// 1. Session picker (/resume )
 	if strings.HasPrefix(val, "/resume ") {
 		query := val[len("/resume "):]
 		summaries, _ := m.sessionMgr.ListSummaries()
-		
 		var items []string
 		for _, s := range summaries {
 			firstMsg := s.FirstMessage
@@ -643,19 +629,13 @@ func (m *model) updatePicker() *model {
 				firstMsg = firstMsg[:37] + "..."
 			}
 			firstMsg = strings.ReplaceAll(firstMsg, "\n", " ")
-			
 			items = append(items, fmt.Sprintf("%s | %-40s | C: %s | U: %s",
-				s.ID,
-				firstMsg,
-				s.CreatedAt.Format("Jan 02 15:04"),
-				s.UpdatedAt.Format("Jan 02 15:04")))
+				s.ID, firstMsg, s.CreatedAt.Format("Jan 02 15:04"), s.UpdatedAt.Format("Jan 02 15:04")))
 		}
-		
 		m.picker.Reset(pickerTypeSession, query, items)
 		return m
 	}
 
-	// 2. Skill picker (/skill: or /skill )
 	if strings.HasPrefix(val, "/skill:") || strings.HasPrefix(val, "/skill ") {
 		prefix := "/skill:"
 		if strings.HasPrefix(val, "/skill ") {
@@ -671,7 +651,6 @@ func (m *model) updatePicker() *model {
 		return m
 	}
 
-	// 3. Prompt picker (/prompt: or /prompt )
 	if strings.HasPrefix(val, "/prompt:") || strings.HasPrefix(val, "/prompt ") {
 		prefix := "/prompt:"
 		if strings.HasPrefix(val, "/prompt ") {
@@ -687,20 +666,17 @@ func (m *model) updatePicker() *model {
 		return m
 	}
 
-	// 4. Slash command picker
 	if strings.HasPrefix(val, "/") && !strings.ContainsRune(val, ' ') {
 		query := val[1:]
 		var cmds []string
 		cmds = append(cmds, BaseSlashCommands...)
 
-		// Add skills
 		skillDirs := append(skills.DefaultDirs(), m.config.SkillPaths...)
 		foundSkills, _ := skills.Discover(skillDirs...)
 		for _, s := range foundSkills {
 			cmds = append(cmds, "skill:"+s.Name)
 		}
 
-		// Add prompts
 		promptDirs := append(prompts.DefaultDirs(), m.config.PromptTemplatePaths...)
 		foundPrompts, _ := prompts.Discover(promptDirs...)
 		for _, p := range foundPrompts {
@@ -709,22 +685,20 @@ func (m *model) updatePicker() *model {
 		}
 
 		sort.Strings(cmds)
-		
 		m.picker.Reset(pickerTypeSlash, query, cmds)
 		return m
 	}
 
-	// 5. Fallback to file picker (@ trigger)
 	query, _, ok := atFragment(val)
 	if !ok {
 		m.picker.Close()
 		return m
 	}
-	
+
 	if m.fileCache == nil {
 		m.fileCache = discoverFiles(".")
 	}
-	
+
 	m.picker.Reset(pickerTypeFile, query, m.fileCache)
 	return m
 }
@@ -733,3 +707,4 @@ func (m *model) openModal(kind modalKind) {
 	m.modal.kind = kind
 	m.modal.visible = true
 }
+

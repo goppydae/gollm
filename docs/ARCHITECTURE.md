@@ -8,16 +8,16 @@ This document describes the high-level architecture of `gollm`: how its componen
 
 ```
 gollm/
-├── cmd/glm/           # Entry point — CLI flags, config loading, mode dispatch (--mode tui|json|grpc)
-├── sdk/                # Public Go SDK (thin wrapper over internal/agent)
-├── internal/
+│   ├── service/        # Central AgentService implementation + in-process client
+│   ├── gen/            # Generated Protobuf stubs (pb.AgentServiceClient/Server)
 │   ├── agent/          # Core agentic loop, event bus, state machine
 │   ├── llm/            # LLM provider adapters (Ollama, OpenAI, Anthropic, llama.cpp, Google)
 │   ├── tools/          # Built-in tool implementations + registry
 │   ├── session/        # JSONL-backed session persistence, branching, tree
 │   ├── modes/
-│   │   ├── interactive/ # Bubble Tea TUI (mode: tui)
-│   │   └── print.go    # One-shot CLI JSONL mode (mode: json)
+│   │   ├── interactive/ # Bubble Tea TUI (pb client)
+│   │   ├── print.go    # One-shot CLI JSONL mode (pb client)
+│   │   └── grpc.go     # gRPC server mode (wraps Service)
 │   ├── config/         # Config loading (global + project layering)
 │   ├── themes/         # TUI colour themes
 │   ├── types/          # Shared value types (Message, Session, ThinkingLevel)
@@ -25,6 +25,7 @@ gollm/
 │   ├── skills/         # Skill discovery (Markdown files → slash commands)
 │   ├── prompts/        # Prompt template discovery
 │   └── contextfiles/   # Auto-discovered context file injection (AGENTS.md, etc.)
+└── proto/              # Protobuf definitions (gollm/v1/agent.proto)
 └── extensions/         # gRPC extension loader + proto definitions
 ```
 
@@ -34,7 +35,7 @@ gollm/
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  CLI flags → Config → Mode dispatch (tui/json/grpc)        │
+│  CLI flags → Config → Backend Service Init                 │
 └────────────────────────┬────────────────────────────────────┘
                          │
           ┌──────────────▼──────────────┐
@@ -50,7 +51,7 @@ gollm/
           │  ┌────────────▼────────────┐│
           │  │    runTurn (loop.go)    ││  ←──── drains queues, handles compaction,
           │  │  provider.Stream()      ││         execs extensions, calls LLM,
-          │  │  consumeStream()           ││         executes tools, loops
+          │  │  consumeStream()        ││         executes tools, loops
           │  │  execTools()            ││
           │  └────────────┬────────────┘│
           │               │ publishes   │
@@ -69,6 +70,39 @@ gollm/
           │  Anthropic, llama.cpp, Google│
           └──────────────────────────────┘
 ```
+
+---
+
+## Service Architecture
+
+`gollm` follows a **Strict Protobuf Internal Architecture**. Instead of UI modes calling Go functions directly, all interfaces are treated as clients of a central `AgentService`.
+
+### Protobuf Boundary
+
+The interface between the UI and the core is defined in `proto/gollm/v1/agent.proto`. This boundary ensures:
+- **Consistency**: All modes (TUI, CLI, JSON, Remote gRPC) use the exact same code paths and logic.
+- **Decoupling**: UI logic is completely isolated from agent state, session persistence, and provider adapters.
+- **Interoperability**: Any gRPC-capable client can interact with a `gollm` service.
+
+### In-Process Communication
+
+For local CLI usage, `gollm` uses a specialized **In-Process Client** (`internal/service/client.go`). It uses `bufconn` to implement the `pb.AgentServiceClient` interface over an in-memory pipe. This provides the safety and structure of gRPC without the latency or configuration complexity of network ports.
+
+### Backend Service (`internal/service`)
+
+The `Service` struct implements `pb.AgentServiceServer`. It owns the `session.Manager` and manages the lifecycle of `agent.Agent` instances. It translates between internal agent events (Go channels) and Protobuf event streams.
+
+#### Session Loading Strategy
+
+RPCs split into two lookup strategies:
+
+| Strategy | Used by | Behaviour |
+|---|---|---|
+| `getOrCreate(id)` | `Prompt`, `NewSession` | Always returns an entry — creates a fresh agent if `id` is unknown, loading from disk if a matching session file exists |
+| `loadIfExists(id)` | `GetState`, `GetMessages`, `ConfigureSession`, `ForkSession`, `CloneSession`, etc. | Returns the entry if it is in memory **or** can be loaded from disk; returns `NotFound` for completely unknown IDs |
+| `lookup(id)` | `Steer`, `Abort`, `FollowUp`, `StreamEvents` | In-memory only — these only make sense for a currently-running agent |
+
+This means a `/resume <id>` command can switch to any session ever saved to disk without a round-trip `NewSession` call: the first `GetMessages` or `GetState` call transparently loads it.
 
 ---
 
@@ -159,7 +193,7 @@ A `ToolRegistry` holds all registered tools. During a turn, when the LLM emits a
 
 The tool system enforces several safety layers:
 
-- **Recursion Depth (`MaxSteps`)**: The `runTurn` loop tracks steps and aborts with an error if the LLM exceeds the configured `MaxSteps` (default: 10). This prevents "hallucination loops" or infinite tool chains.
+- **Recursion Depth (`MaxSteps`)**: The `runTurn` loop tracks steps and aborts with an error if the LLM exceeds the configured `MaxSteps`. This prevents "hallucination loops" or infinite tool chains.
 - **Dry-Run Mode**: When `DryRun` is enabled, any tool that is not marked as read-only will bypass execution and return a descriptive preview of what it *would* have done.
 - **Input Sanitization**: Prompt template expansion automatically wraps user inputs in `<untrusted_input>` tags to prevent prompt breakout and injection into the base instructions.
 
@@ -180,8 +214,8 @@ Sessions are persisted as **JSONL files** in a project-aware directory:
 
 Each `.jsonl` file contains one JSON object per line:
 
-- **Line 0 (header)**: `kind=header` — session ID, parentId, model, timestamps, system prompt
-- **Subsequent lines**: `kind=message` — individual conversation messages with full payloads
+- **Line 0 (header)**: `kind=header` — session ID, parentId, model, timestamps, system prompt, compaction settings, dryRun flag
+- **Subsequent lines**: `kind=message` — individual conversation messages with full payloads (role, content, thinking, tool calls, tool call ID)
 
 ### Session Tree
 
@@ -201,21 +235,25 @@ The TUI is built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) (
 
 | File | Responsibility |
 |---|---|
-| `interactive.go` | `Run()` entry point, agent and session wiring |
-| `model.go` | `model` struct definition |
-| `update.go` | `Update()` — key handling, slash commands, picker logic |
-| `events.go` | `handleAgentEvent()` — maps agent events to TUI history updates |
+| `interactive.go` | `Run()` entry point, gRPC client wiring |
+| `model.go` | `model` struct definition, `newModel()` |
+| `update.go` | `Update()` — key handling, slash commands, picker logic, `promptGRPC()` |
+| `events.go` | `handleAgentEvent()` — maps `*pb.AgentEvent` payloads to TUI history updates |
 | `view.go` | `View()` — renders chat history, status bar, input |
 | `modal.go` | Stats, Config, and Session Tree modal overlays |
-| `slash.go` | Slash command parsing and handlers |
+| `slash.go` | Slash command parsing and handlers (all via gRPC client) |
 | `picker.go` | Fuzzy picker component (sessions, skills, files, prompts) |
 | `keys.go` | Keybinding helpers (`Matches`, `K.Ctrl(...)`) |
 | `types.go` | `historyEntry`, `contentItem`, `toolCallEntry` — render data model |
-| `utils.go` | Helper functions |
+| `utils.go` | Helper functions (`Capitalize`) |
+
+### Prompt Submission
+
+Prompt submission in the TUI uses `promptGRPC()`, which opens a `client.Prompt()` server-streaming RPC and drains `*pb.AgentEvent` messages into `m.eventCh` in a goroutine. The `listenForEvent` Bubble Tea command feeds that channel back into the update loop one event at a time.
 
 ### Prompt History
 
-The TUI maintains a per-session prompt history in `m.promptHistory`. Users can navigate through previous prompts using the **Up** and **Down** arrow keys while the editor is focused. The current draft is preserved as `m.draftInput` when navigating away from the prompt line. The status footer also includes a real-time **context window progress bar** driven by token usage events from the agent.
+The TUI maintains a per-session prompt history in `m.promptHistory`, synced from the service via `GetMessages` at startup and after session switches. Users navigate previous prompts using **Up/Down** arrow keys while the editor is focused; the current draft is preserved as `m.draftInput`.
 
 ### Render Data Model
 
@@ -233,7 +271,7 @@ historyEntry {
 }
 ```
 
-This mirrors pi-mono's `content[]` array model, ensuring correct temporal ordering of thinking, text, and tool calls.
+This mirrors the `content[]` array model, ensuring correct temporal ordering of thinking, text, and tool calls.
 
 ### Modal System
 
@@ -250,17 +288,31 @@ Extensions implement the `agent.Extension` interface:
 
 ```go
 type Extension interface {
-    ModifySystemPrompt(ctx context.Context, state *AgentState) *AgentState
-    BeforePrompt(ctx context.Context, state *AgentState) *AgentState
-    AfterToolCall(ctx context.Context, state *AgentState) *AgentState
+    // Name returns the extension's unique identifier.
+    Name() string
+
+    // Tools returns additional tools to register with the agent.
     Tools() []tools.Tool
+
+    // BeforePrompt is called before each LLM request.
+    BeforePrompt(ctx context.Context, state *AgentState) *AgentState
+
+    // BeforeToolCall is called before each tool execution.
+    // Return (result, true) to intercept; (nil, false) to allow normal execution.
+    BeforeToolCall(ctx context.Context, call *ToolCall, args json.RawMessage) (*tools.ToolResult, bool)
+
+    // AfterToolCall is called after each tool call completes.
+    AfterToolCall(ctx context.Context, call *ToolCall, result *tools.ToolResult) *tools.ToolResult
+
+    // ModifySystemPrompt augments the system prompt before each turn.
+    ModifySystemPrompt(prompt string) string
 }
 ```
 
 Two extension types are supported:
 
-1. **gRPC extensions** (`extensions/grpc.go`) — External processes connected via gRPC. The loader launches the process and wraps its tools as native `Tool` implementations.
-2. **Skills** (`extensions/skills.go`) — Markdown files discovered from `.gollm/skills/` that are injected into the system prompt or sent as user messages via `/skill:<name>`.
+1. **gRPC extensions** (`extensions/grpc.go`) — External processes connected via hashicorp/go-plugin gRPC. The loader launches the process, performs the handshake, and wraps its tools as native `Tool` implementations. Use `extensions.HandshakeConfig`, `extensions.ExtensionPlugin`, and `extensions.NoopPlugin` from `github.com/goppydae/gollm/extensions`. Plugin tools declare read-only semantics via the `IsReadOnly bool` field on `extensions.ToolDefinition`; this propagates to the internal `RemoteTool.IsReadOnly()` so dry-run mode and sandbox extensions can honour it correctly.
+2. **Skills** (`internal/skills`) — Markdown files discovered from `.gollm/skills/` that are injected into the system prompt or sent as user messages via `/skill:<name>`.
 
 ---
 
@@ -279,7 +331,7 @@ ag.Prompt(ctx, "Hello")
 <-ag.Idle()
 ```
 
-The SDK re-exports core types (`Agent`, `Event`, `EventType`, `Tool`, `ThinkingLevel`) so consumers only need to import `gollm/sdk`.
+The SDK re-exports core types (`Agent`, `Event`, `EventType`, `Tool`, `ThinkingLevel`, `Extension`) so consumers only need to import `gollm/sdk`.
 
 ---
 
@@ -289,18 +341,20 @@ The SDK re-exports core types (`Agent`, `Event`, `EventType`, `Tool`, `ThinkingL
 
 ### Versioning
 
-The project version is maintained in a [VERSION](file:///Users/sysop/Projects/giggle-silo/gollm/VERSION) file in the repository root. During build, `Magefile.go` reads this file and injects it into the binary using linker flags (`-ldflags "-X main.version=..."`).
+The project version is maintained in a [VERSION](../VERSION) file in the repository root. During build, `Magefile.go` reads this file and injects it into the binary using linker flags (`-ldflags "-X main.version=..."`).
 
 ### Build Tool (Mage)
 
 The `Magefile.go` defines several targets:
 - `Build`: Compiles the `glm` binary for the current platform with version injection.
 - `Test`: Runs all unit tests with optional coverage support.
+- `All`: Runs build, test, vet, lint, and vulnerability scan (`govulncheck`).
 - `Release`: Cross-compiles `glm` for Linux, macOS, and Windows (AMD64/ARM64), disables CGO for static portability, and packages artifacts into compressed archives in `dist/`.
+- `Generate`: Runs `buf` to regenerate protobuf stubs in `internal/gen/gollm/v1/` and `extensions/gen/`.
 
 ### CI/CD Pipelines
 
-1. **Continuous Integration** (`ci.yml`): Triggered on every push to `main` and all pull requests. It runs `mage all` (build, test, vet, lint) within a Nix environment and uploads the resulting binary as a build artifact.
+1. **Continuous Integration** (`ci.yml`): Triggered on every push to `main` and all pull requests. It runs `mage all` (build, test, vet, lint, govulncheck) within a Nix environment on both `ubuntu-latest` and `macos-latest`, then uploads per-platform binaries as build artifacts. Coverage is also collected and summarised via `go tool cover`.
 2. **Automated Release** (`release.yml`): Triggered by pushing a version tag (e.g., `v1.2.3`). It runs `mage release` to build cross-platform assets and uses `softprops/action-gh-release` to publish them to a new GitHub Release.
 
 ---
@@ -310,18 +364,27 @@ The `Magefile.go` defines several targets:
 ```
 User Input
     ↓
-[TUI (tui) / JSON (json) / gRPC (grpc)]
+[TUI (tui) / JSON (json) / Remote Client]
+    ↓
+[pb.AgentServiceClient] (In-Process bufconn / TCP)
+    ↓
+[internal/service] (pb.AgentServiceServer)
+  - getOrCreate / loadIfExists: load session from disk if needed
     ↓
 agent.Prompt(ctx, text)
     ↓
 runTurn loop
+    ├── ext.ModifySystemPrompt() / ext.BeforePrompt()
     ├── llm.Provider.Stream()  → EventTextDelta / EventThinkingDelta / EventToolCall
-    ├── execTool()             → EventToolDelta / EventToolOutput
+    ├── ext.BeforeToolCall() / execTool() / ext.AfterToolCall()
+    │        → EventToolDelta / EventToolOutput
     └── loop until no tool calls
     ↓
 EventAgentEnd
     ↓
-session.Manager.Save()         ← TUI subscriber saves on AgentEnd
+internal/service (saves session on AgentEnd)
     ↓
-[Render to TUI / JSONL / gRPC stream]
+[Stream Protobuf Events to Client]
+    ↓
+[Render to TUI / JSONL stdout / Remote gRPC stream]
 ```

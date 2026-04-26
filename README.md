@@ -13,7 +13,7 @@
 - **Local-First** — Built from the ground up to favor local inference for privacy, speed, and cost-efficiency.
 - **Aggressively Extensible** — Every tool, provider, and behavior is a plugin interface. Supports gRPC extensions, markdown skills, and reusable prompt templates.
 - **Session Persistence** — Intelligent JSONL-backed session management with project-aware storage, branching, forking, and tree visualization.
-- **Flexible Modes** — TUI mode, one-shot JSON mode, or a multi-session gRPC service.
+- **Flexible Modes** — TUI mode, one-shot mode, or a multi-session gRPC service—all powered by a central service-oriented architecture.
 - **Security & Safety** — Dry-run safety for destructive tools, automatic prompt injection mitigation, and a gRPC extension system for enforcing arbitrary policies.
 
 ---
@@ -22,7 +22,7 @@
 
 ### Prerequisites
 
-- **Go** 1.25+
+- **Go** 1.26.2+
 - **Nix** (optional, recommended) — with flake support enabled
 
 ### Installation
@@ -119,9 +119,11 @@ cat main.go | glm --mode json "Refactor this to use interfaces"
 glm --mode json "Summarize the last 10 git commits" --model anthropic/claude-opus-4-5
 ```
 
+Each event is emitted as a single JSON line using the protobuf JSON encoding of `AgentEvent`.
+
 ### 3. gRPC Mode (`--mode grpc`)
 
-A persistent multi-session gRPC service. Each client-supplied `session_id` gets its own isolated agent; sessions are saved to disk after each turn and reloaded automatically on reconnect.
+A persistent multi-session gRPC service. The CLI acts as a client to a central `AgentService`, either in-process or over the network. Each client-supplied `session_id` gets its own isolated agent; sessions are saved to disk after each turn and reloaded automatically on reconnect.
 
 ```bash
 # Start on the default port (:50051)
@@ -133,7 +135,7 @@ glm --mode grpc --grpc-addr :9090
 
 The server responds to SIGINT/SIGTERM with a graceful shutdown: in-flight turns are allowed to finish (30 s timeout), all sessions are flushed to disk, then the listener closes.
 
-Proto definition and generated Go stubs live in `proto/gollm/v1/` and `internal/gen/gollm/v1/`. Regenerate with `mage generate`.
+Proto definition and generated Go stubs live in `proto/gollm/v1/` and `internal/gen/gollm/v1/`. All UI modes (TUI, CLI) now communicate with the core via this Protobuf boundary using an in-process transport for maximum performance. Regenerate with `mage generate`.
 
 ---
 
@@ -278,13 +280,17 @@ glm --extension ./gollm-sandbox "Refactor main.go"
 
 ```jsonc
 {
-  "model": "llama3.2",
-  "provider": "ollama",
-  "theme": "mocha",
+  "defaultModel": "llama3.2",
+  "defaultProvider": "ollama",
+  "theme": "dark",
   "thinkingLevel": "medium",
   "ollamaBaseURL": "http://localhost:11434",
-  "openaiBaseURL": "https://api.openai.com/v1",
-  "llamacppBaseURL": "http://localhost:8080",
+  "openAIBaseURL": "https://api.openai.com/v1",
+  "openAIApiKey": "",
+  "anthropicApiKey": "",
+  "anthropicApiVersion": "",
+  "googleApiKey": "",
+  "llamaCppBaseURL": "http://localhost:8080",
   "compaction": {
     "enabled": true,
     "reserveTokens": 2048,
@@ -296,18 +302,56 @@ glm --extension ./gollm-sandbox "Refactor main.go"
 ### CLI Flags
 
 ```
---model / -m         Model to use
---provider           Provider (ollama, openai, anthropic, llamacpp, google)
---thinking           Thinking level (off, low, medium, high)
---theme              UI theme (dark, light, cyberpunk, synthwave, …)
---session            Resume a specific session by ID or path
---continue / -c      Resume the most recent session
---mode               Mode: tui (default), json, grpc
---grpc-addr          gRPC listen address (default :50051; --mode grpc only)
---no-session         Disable session persistence
---models             Comma-separated model list for Ctrl+P cycling
---dry-run            Enable safety mode for dangerous tools
---extension / -e     Load a gRPC extension binary (repeatable)
+Mode
+  --mode               Mode: tui (default), json, grpc
+  --grpc-addr          gRPC listen address (default :50051; --mode grpc only)
+
+Model / Provider
+  --model / -m         Model to use (e.g. llama3, gpt-4o, anthropic/claude-sonnet-4-6)
+  --provider           Provider: ollama, openai, anthropic, llamacpp, google
+  --api-key            API key override (env vars take priority otherwise)
+  --thinking           Thinking level: none, low, medium, high
+  --models             Comma-separated model list for Ctrl+P cycling
+
+Session
+  --continue / -c      Resume the most recent session
+  --resume / -r        Select a session to resume (fuzzy search or ID)
+  --session            Use a specific session file path
+  --session-dir        Directory for session storage and lookup
+  --fork               Fork a session file or partial UUID into a new session
+  --no-session         Ephemeral mode: don't save the session
+
+System Prompt
+  --system-prompt      Override the system prompt
+  --append-system-prompt   Append text or @file to the system prompt (repeatable)
+
+Tools
+  --tools              Comma-separated list of tools to enable (read,bash,edit,write,grep,find,ls)
+  --no-tools           Disable all built-in tools
+  --dry-run            Safety mode: destructive tools preview actions instead of running
+
+Extensions / Skills / Prompts
+  --extension / -e     Load a gRPC extension binary (repeatable)
+  --no-extensions      Disable extension directory auto-discovery (-e paths still load)
+  --skill              Load a skill file or directory (repeatable)
+  --no-skills          Disable skill auto-discovery
+  --prompt-template    Load a prompt template file or directory (repeatable)
+  --no-prompt-templates  Disable prompt template auto-discovery
+
+Context Files
+  --no-context-files   Disable AGENTS.md / CLAUDE.md auto-discovery
+
+Theme
+  --theme              UI theme name: dark, light, cyberpunk, synthwave, …
+  --theme-path         Load a theme file or directory (repeatable)
+  --no-themes          Disable theme auto-discovery
+
+Output / Info
+  --export             Export current session to an HTML file and exit
+  --list-models        List available models from the configured provider (optional fuzzy filter)
+  --version / -v       Show version number
+  --verbose            Force verbose startup output
+  --offline            Disable startup network operations (model checks, etc.)
 ```
 
 ---
@@ -352,11 +396,14 @@ mage build
 # Run tests
 mage test
 
-# Run all checks (build, test, vet, lint)
+# Run all checks (build, test, vet, lint, vuln)
 mage all
 
 # Regenerate protobuf stubs (buf, covers all targets)
 mage generate
+
+# Scan for known vulnerabilities in dependencies
+mage vuln
 
 # Create cross-platform release artifacts (in dist/)
 mage release

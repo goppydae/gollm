@@ -47,4 +47,9 @@ type AgentState struct {
 	MaxTokens     int             `json:"maxTokens,omitempty"`
 	Temperature   float64         `json:"temperature,omitempty"`
 	DryRun        bool            `json:"dryRun,omitempty"`
+	Compaction    struct {
+		Enabled          bool `json:"enabled"`
+		ReserveTokens    int  `json:"reserveTokens"`
+		KeepRecentTokens int  `json:"keepRecentTokens"`
+	} `json:"compaction"`
 }

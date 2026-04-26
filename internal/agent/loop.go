@@ -56,7 +56,27 @@ func (a *Agent) runTurn(ctx context.Context) {
 		// Run BeforePrompt extensions
 		a.mu.Lock()
 		for _, ext := range a.extensions {
-			a.state = ext.BeforePrompt(ctx, a.state)
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						a.events.Publish(Event{Type: EventError, Error: fmt.Errorf("extension BeforePrompt panic: %v", r)})
+					}
+				}()
+				if next := ext.BeforePrompt(ctx, a.state); next != nil {
+					a.state = next
+				}
+			}()
+		}
+		// Apply ModifySystemPrompt so extensions (skills, plugins) can inject content.
+		for _, ext := range a.extensions {
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						a.events.Publish(Event{Type: EventError, Error: fmt.Errorf("extension ModifySystemPrompt panic: %v", r)})
+					}
+				}()
+				a.state.SystemPrompt = ext.ModifySystemPrompt(a.state.SystemPrompt)
+			}()
 		}
 		a.mu.Unlock()
 
@@ -250,10 +270,19 @@ func (a *Agent) runToolCalls(ctx context.Context, toolCalls []*llm.ToolCall) boo
 		var result *tools.ToolResult
 		a.mu.Lock()
 		for _, ext := range a.extensions {
-			if r, intercepted := ext.BeforeToolCall(ctx, &types.ToolCall{
-				ID: tc.ID, Name: tc.Name, Args: tc.Args, Position: tc.Position,
-			}, tc.Args); intercepted {
-				result = r
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						a.events.Publish(Event{Type: EventError, Error: fmt.Errorf("extension BeforeToolCall panic: %v", r)})
+					}
+				}()
+				if r, intercepted := ext.BeforeToolCall(ctx, &types.ToolCall{
+					ID: tc.ID, Name: tc.Name, Args: tc.Args, Position: tc.Position,
+				}, tc.Args); intercepted {
+					result = r
+				}
+			}()
+			if result != nil {
 				break
 			}
 		}
@@ -265,12 +294,21 @@ func (a *Agent) runToolCalls(ctx context.Context, toolCalls []*llm.ToolCall) boo
 		// Run AfterToolCall extensions
 		a.mu.Lock()
 		for _, ext := range a.extensions {
-			result = ext.AfterToolCall(ctx, &types.ToolCall{
-				ID:       tc.ID,
-				Name:     tc.Name,
-				Args:     tc.Args,
-				Position: tc.Position,
-			}, result)
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						a.events.Publish(Event{Type: EventError, Error: fmt.Errorf("extension AfterToolCall panic: %v", r)})
+					}
+				}()
+				if next := ext.AfterToolCall(ctx, &types.ToolCall{
+					ID:       tc.ID,
+					Name:     tc.Name,
+					Args:     tc.Args,
+					Position: tc.Position,
+				}, result); next != nil {
+					result = next
+				}
+			}()
 		}
 		a.mu.Unlock()
 

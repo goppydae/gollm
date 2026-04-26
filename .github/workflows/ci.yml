@@ -12,23 +12,34 @@ env:
 
 jobs:
   full-build-and-test:
-    name: Full Build and Test
-    runs-on: ubuntu-latest
+    name: Build and Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
     steps:
       - name: Checkout Workspace
         uses: actions/checkout@v4
-      
+
       - name: Synchronize Environment (Nix)
         uses: cachix/install-nix-action@v24
         with:
           nix_path: nixpkgs=channel:nixos-unstable
-      
+
       - name: Full Build and Verification
         run: nix develop -c mage all
-      
-      - name: Upload binaries
+
+      - name: Test with Coverage
+        run: nix develop -c go test -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Coverage Summary
+        run: nix develop -c go tool cover -func=coverage.out
+
+      - name: Upload Binary
         uses: actions/upload-artifact@v4
         with:
-          name: glm-binary
+          name: glm-${{ matrix.os }}
           path: glm
           retention-days: 7

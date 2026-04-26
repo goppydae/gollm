@@ -27,8 +27,9 @@ type EventBus struct {
 }
 
 type subscriber struct {
-	id string
-	ch chan any
+	id     string
+	ch     chan any
+	closed bool
 }
 
 // NewEventBus creates a new event bus.
@@ -80,7 +81,8 @@ func (b *EventBus) Subscribe(fn Handler) func() {
 	return func() {
 		b.mu.Lock()
 		defer b.mu.Unlock()
-		if s, ok := b.subscribers[id]; ok {
+		if s, ok := b.subscribers[id]; ok && !s.closed {
+			s.closed = true
 			close(s.ch)
 			delete(b.subscribers, id)
 		}
@@ -93,7 +95,10 @@ func (b *EventBus) Close() {
 	defer b.mu.Unlock()
 	b.closed = true
 	for id, sub := range b.subscribers {
-		close(sub.ch)
+		if !sub.closed {
+			sub.closed = true
+			close(sub.ch)
+		}
 		delete(b.subscribers, id)
 	}
 }

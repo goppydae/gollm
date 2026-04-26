@@ -5,7 +5,9 @@
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -66,17 +68,53 @@ func Release() error {
 			// .zip
 			zipName := fmt.Sprintf("glm-%s-%s-%s.zip", v, p.os, p.arch)
 			if err := run("zip", "-j", filepath.Join("dist", zipName), target); err != nil {
-				fmt.Printf("Warning: failed to zip %s (is zip installed?): %v\n", zipName, err)
+				return fmt.Errorf("failed to zip %s (is zip installed?): %w", zipName, err)
 			}
 		} else {
 			// .tar.gz
 			tarName := fmt.Sprintf("glm-%s-%s-%s.tar.gz", v, p.os, p.arch)
 			if err := run("tar", "-czf", filepath.Join("dist", tarName), "-C", "dist", name); err != nil {
-				fmt.Printf("Warning: failed to tar %s: %v\n", tarName, err)
+				return fmt.Errorf("failed to tar %s: %w", tarName, err)
 			}
 		}
 	}
 
+	if err := writeSHA256Sums("dist"); err != nil {
+		return fmt.Errorf("failed to write checksums: %w", err)
+	}
+	fmt.Println("✅ Release artifacts written to dist/")
+	return nil
+}
+
+// writeSHA256Sums generates a SHA256SUMS file for all files in dir.
+func writeSHA256Sums(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	f, err := os.Create(filepath.Join(dir, "SHA256SUMS"))
+	if err != nil {
+		return err
+	}
+	defer func() { _ = f.Close() }()
+
+	for _, e := range entries {
+		if e.IsDir() || e.Name() == "SHA256SUMS" {
+			continue
+		}
+		path := filepath.Join(dir, e.Name())
+		h := sha256.New()
+		fh, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		if _, err = io.Copy(h, fh); err != nil {
+			_ = fh.Close()
+			return err
+		}
+		_ = fh.Close()
+		fmt.Fprintf(f, "%x  %s\n", h.Sum(nil), e.Name())
+	}
 	return nil
 }
 
@@ -141,7 +179,12 @@ func Generate() error {
 	return run("buf", "generate", "extensions/proto", "--template", "buf.gen.extensions.yaml")
 }
 
-// All runs build, test, vet, and lint.
+// Vuln runs govulncheck to scan for known vulnerabilities in dependencies.
+func Vuln() error {
+	return run("go", "run", "golang.org/x/vuln/cmd/govulncheck@latest", "./...")
+}
+
+// All runs build, test, vet, lint, and vulnerability scan.
 func All() error {
 	if err := Build(); err != nil {
 		return err
@@ -153,6 +196,9 @@ func All() error {
 		return err
 	}
 	if err := Lint(); err != nil {
+		return err
+	}
+	if err := Vuln(); err != nil {
 		return err
 	}
 	fmt.Println("✅ All checks passed")

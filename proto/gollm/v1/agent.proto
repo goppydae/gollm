@@ -32,10 +32,35 @@ service AgentService {
   // GetMessages returns the full conversation transcript.
   rpc GetMessages(GetMessagesRequest) returns (GetMessagesResponse);
 
+  // ConfigureSession updates session-level settings.
+  rpc ConfigureSession(ConfigureSessionRequest) returns (ConfigureSessionResponse);
+
+  // SetModel sets the model name.
   rpc SetModel(SetModelRequest) returns (SetModelResponse);
+
+  // SetThinkingLevel sets the thinking level.
   rpc SetThinkingLevel(SetThinkingLevelRequest) returns (SetThinkingLevelResponse);
+
+  // SetSessionName sets a human-readable name for the session.
   rpc SetSessionName(SetSessionNameRequest) returns (SetSessionNameResponse);
+
+  // Compact triggers manual context compaction.
   rpc Compact(CompactRequest) returns (CompactResponse);
+
+  // ForkSession creates a new session branched from an existing one.
+  rpc ForkSession(ForkSessionRequest) returns (NewSessionResponse);
+
+  // CloneSession duplicates an existing session into a new independent one.
+  rpc CloneSession(CloneSessionRequest) returns (NewSessionResponse);
+
+  // GetSessionTree returns the hierarchical tree of sessions.
+  rpc GetSessionTree(GetSessionTreeRequest) returns (GetSessionTreeResponse);
+
+  // FollowUp queues a follow-up message to be processed after the current turn finishes.
+  rpc FollowUp(FollowUpRequest) returns (FollowUpResponse);
+
+  // StreamEvents opens a long-lived stream for all agent events (heartbeats, state changes, etc.).
+  rpc StreamEvents(StreamEventsRequest) returns (stream AgentEvent);
 }
 
 // ── Requests ──────────────────────────────────────────────────────────────────
@@ -44,6 +69,22 @@ message PromptRequest {
   string session_id = 1;
   string message    = 2;
   repeated ImageAttachment images = 3;
+}
+
+message ConfigureSessionRequest {
+  string session_id      = 1;
+  optional string model  = 2;
+  optional string thinking_level = 3;
+  optional string system_prompt  = 4;
+  optional bool dry_run  = 5;
+  optional CompactionConfig compaction = 6;
+  optional string provider = 7;
+}
+
+message CompactionConfig {
+  bool enabled            = 1;
+  int32 reserve_tokens    = 2;
+  int32 keep_recent_tokens = 3;
 }
 
 message ImageAttachment {
@@ -62,6 +103,30 @@ message SetModelRequest         { string session_id = 1; string model = 2; }
 message SetThinkingLevelRequest { string session_id = 1; string thinking_level = 2; }
 message SetSessionNameRequest   { string session_id = 1; string name = 2; }
 message CompactRequest          { string session_id = 1; }
+message ForkSessionRequest       { string session_id = 1; }
+message CloneSessionRequest      { string session_id = 1; }
+message GetSessionTreeRequest    {}
+message FollowUpRequest {
+  string session_id = 1;
+  string message    = 2;
+  repeated ImageAttachment images = 3;
+}
+message StreamEventsRequest {
+  string session_id = 1;
+}
+
+message GetSessionTreeResponse {
+  repeated SessionNode roots = 1;
+}
+
+message SessionNode {
+  string session_id = 1;
+  string name       = 2;
+  repeated SessionNode children = 3;
+  string first_message = 4;
+  int64  created_at    = 5;
+  int64  updated_at    = 6;
+}
 
 // ── Responses ─────────────────────────────────────────────────────────────────
 
@@ -72,17 +137,20 @@ message SetModelResponse            { bool ok = 1; }
 message SetThinkingLevelResponse    { bool ok = 1; }
 message SetSessionNameResponse      { bool ok = 1; }
 message CompactResponse             { bool ok = 1; }
+message ConfigureSessionResponse    { bool ok = 1; }
+message FollowUpResponse            { bool ok = 1; }
 
 message NewSessionResponse { string session_id = 1; }
 
 message ListSessionsResponse { repeated SessionSummary sessions = 1; }
 
 message SessionSummary {
-  string session_id = 1;
-  string name       = 2;
-  string lifecycle  = 3;
-  int64  created_at = 4;
-  int64  updated_at = 5;
+  string session_id  = 1;
+  string name        = 2;
+  string description = 3;
+  string lifecycle   = 4;
+  int64  created_at  = 5;
+  int64  updated_at  = 6;
 }
 
 message GetStateResponse {
@@ -92,14 +160,35 @@ message GetStateResponse {
   string thinking_level = 4;
   string lifecycle      = 5;
   int32  message_count  = 6;
+  string system_prompt  = 7;
+  bool   dry_run        = 8;
+  CompactionConfig compaction = 9;
+  ProviderInfo provider_info = 10;
+}
+
+message ProviderInfo {
+  string name           = 1;
+  string model          = 2;
+  int32  context_window = 3;
+  bool   supports_images = 4;
+  bool   supports_tools  = 5;
 }
 
 message GetMessagesResponse { repeated ConversationMessage messages = 1; }
 
+message ToolCallProto {
+  string id        = 1;
+  string name      = 2;
+  string args_json = 3;
+}
+
 message ConversationMessage {
-  string role      = 1;
-  string content   = 2;
-  int64  timestamp = 3; // unix millis
+  string role         = 1;
+  string content      = 2;
+  int64  timestamp    = 3; // unix millis
+  string thinking     = 4;
+  repeated ToolCallProto tool_calls = 5;
+  string tool_call_id = 6;
 }
 
 // ── Streaming event (server → client) ─────────────────────────────────────────

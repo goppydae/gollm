@@ -1,6 +1,6 @@
 module github.com/goppydae/gollm
 
-go 1.25.8
+go 1.26.2
 
 require (
 	charm.land/bubbles/v2 v2.1.0
