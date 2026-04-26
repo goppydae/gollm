@@ -26,7 +26,7 @@ func NewStyle(t Theme) Style {
 	return themes.NewStyle(t)
 }
 
-func newModel(modelName, provider, thinking string, contextWindow int, client pb.AgentServiceClient, sessionID string, eventCh chan *pb.AgentEvent, mgr *session.Manager, cfg *config.Config, initialInput string) *model {
+func newModel(modelName, provider, thinking string, contextWindow int, client pb.AgentServiceClient, sessionID string, eventCh chan *pb.AgentEvent, mgr *session.Manager, cfg *config.Config, initialInput string, style themes.Style) *model {
 	// Input
 	input := textarea.New()
 	input.Placeholder = "Prompt me..."
@@ -54,6 +54,9 @@ func newModel(modelName, provider, thinking string, contextWindow int, client pb
 	// Spinner
 	sp := spinner.New(spinner.WithStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("60"))))
 
+	// Keymap
+	keys := DefaultKeyMap()
+
 	// Help
 	h := help.New()
 	h.Styles = help.DefaultDarkStyles()
@@ -71,6 +74,7 @@ func newModel(modelName, provider, thinking string, contextWindow int, client pb
 		input:         input,
 		vp:            vp,
 		spinner:       sp,
+		keys:          keys,
 		helper:        h,
 		progressBar:   pg,
 		stopwatch:     sw,
@@ -85,8 +89,10 @@ func newModel(modelName, provider, thinking string, contextWindow int, client pb
 		sessionMgr:    mgr,
 		config:        cfg,
 		modal:         newModal(),
+		picker:        newPickerList(style),
 		initialPrompt: initialInput,
 		historyIndex:  -1,
+		style:         style,
 	}
 
 	m.syncPromptHistory()

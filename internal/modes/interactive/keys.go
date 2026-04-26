@@ -1,188 +1,100 @@
 package interactive
 
 import (
-	"strings"
-
-	tea "charm.land/bubbletea/v2"
+	"charm.land/bubbles/v2/key"
 )
 
-// KeyId is a string key identifier.
-// Examples: "enter", "ctrl+c", "shift+enter", "e", "escape"
-type KeyId string
-
-// K is a helper object for creating typed key identifiers.
-// Usage: K.Esc, K.Ctrl("c"), K.Shift("enter"), K.CtrlAlt("o")
-var K = k{}
-
-type k struct{}
-
-func (k) Esc() KeyId         { return "escape" }
-func (k) Enter() KeyId       { return "enter" }
-func (k) Tab() KeyId         { return "tab" }
-func (k) Space() KeyId       { return "space" }
-func (k) Backspace() KeyId   { return "backspace" }
-func (k) Delete() KeyId      { return "delete" }
-func (k) Insert() KeyId      { return "insert" }
-func (k) Home() KeyId        { return "home" }
-func (k) End() KeyId         { return "end" }
-func (k) PageUp() KeyId      { return "pageUp" }
-func (k) PageDown() KeyId    { return "pageDown" }
-func (k) Up() KeyId          { return "up" }
-func (k) Down() KeyId        { return "down" }
-func (k) Left() KeyId        { return "left" }
-func (k) Right() KeyId       { return "right" }
-func (k) F1() KeyId          { return "f1" }
-func (k) F2() KeyId          { return "f2" }
-func (k) F12() KeyId         { return "f12" }
-
-func (k) Ctrl(c string) KeyId    { return KeyId("ctrl+" + c) }
-func (k) Shift(c string) KeyId   { return KeyId("shift+" + c) }
-func (k) Alt(c string) KeyId     { return KeyId("alt+" + c) }
-func (k) CtrlShift(c string) KeyId { return KeyId("ctrl+shift+" + c) }
-func (k) CtrlAlt(c string) KeyId    { return KeyId("ctrl+alt+" + c) }
-func (k) ShiftCtrl(c string) KeyId  { return KeyId("shift+ctrl+" + c) }
-
-// Matches checks if a tea.KeyMsg matches a KeyId.
-// Supports: single keys, ctrl/shift/alt modifiers, combined modifiers.
-func Matches(msg tea.KeyMsg, keyId KeyId) bool {
-	parsed := parseKeyId(keyId)
-	if parsed == nil {
-		return false
-	}
-
-	key := msg.Key()
-	return matchesKeyMsg(key, parsed.key, parsed.ctrl, parsed.shift, parsed.alt)
+// KeyMap defines the keybindings for the TUI.
+type KeyMap struct {
+	Up             key.Binding
+	Down           key.Binding
+	PageUp         key.Binding
+	PageDown       key.Binding
+	Enter          key.Binding
+	ShiftEnter     key.Binding
+	CtrlEnter      key.Binding
+	Esc            key.Binding
+	CtrlC          key.Binding
+	CtrlO          key.Binding
+	CtrlP          key.Binding
+	Tab            key.Binding
+	ShiftTab       key.Binding
+	Help           key.Binding
 }
 
-// matchesKeyMsg checks if a tea.Key matches a key descriptor.
-func matchesKeyMsg(key tea.Key, keyStr string, ctrl, shift, alt bool) bool {
-	// Check modifiers
-	if (key.Mod&tea.ModCtrl != 0) != ctrl {
-		return false
+// DefaultKeyMap returns the default keybindings.
+func DefaultKeyMap() KeyMap {
+	return KeyMap{
+		Up: key.NewBinding(
+			key.WithKeys("up"),
+			key.WithHelp("↑", "history/scroll"),
+		),
+		Down: key.NewBinding(
+			key.WithKeys("down"),
+			key.WithHelp("↓", "history/scroll"),
+		),
+		PageUp: key.NewBinding(
+			key.WithKeys("pgup"),
+			key.WithHelp("pgup", "page up"),
+		),
+		PageDown: key.NewBinding(
+			key.WithKeys("pgdown"),
+			key.WithHelp("pgdown", "page down"),
+		),
+		Enter: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "send/select"),
+		),
+		ShiftEnter: key.NewBinding(
+			key.WithKeys("shift+enter"),
+			key.WithHelp("shift+enter", "newline"),
+		),
+		CtrlEnter: key.NewBinding(
+			key.WithKeys("ctrl+enter"),
+			key.WithHelp("ctrl+enter", "send message"),
+		),
+		Esc: key.NewBinding(
+			key.WithKeys("esc"),
+			key.WithHelp("esc", "abort/close"),
+		),
+		CtrlC: key.NewBinding(
+			key.WithKeys("ctrl+c"),
+			key.WithHelp("ctrl+c", "quit"),
+		),
+		CtrlO: key.NewBinding(
+			key.WithKeys("ctrl+o"),
+			key.WithHelp("ctrl+o", "toggle tool calls"),
+		),
+		CtrlP: key.NewBinding(
+			key.WithKeys("ctrl+p"),
+			key.WithHelp("ctrl+p", "cycle models"),
+		),
+		Tab: key.NewBinding(
+			key.WithKeys("tab"),
+			key.WithHelp("tab", "autocomplete"),
+		),
+		ShiftTab: key.NewBinding(
+			key.WithKeys("shift+tab"),
+		),
+		Help: key.NewBinding(
+			key.WithKeys("?"),
+			key.WithHelp("?", "toggle help"),
+		),
 	}
-	if (key.Mod&tea.ModAlt != 0) != alt {
-		return false
-	}
-	if (key.Mod&tea.ModShift != 0) != shift {
-		return false
-	}
-
-	// Handle shift: use ShiftedCode for shifted letters
-	if shift {
-		// Shift+letter: use ShiftedCode when available
-		if len(keyStr) == 1 && keyStr >= "a" && keyStr <= "z" {
-			if key.ShiftedCode != 0 && string(key.ShiftedCode) == strings.ToUpper(keyStr) {
-				return true
-			}
-			if key.ShiftedCode == 0 && string(key.Code) == strings.ToUpper(keyStr) {
-				return true
-			}
-		}
-		// Shift+tab: no KeyShiftTab in bubbletea v2 — check mod+code
-		if keyStr == "tab" && key.Mod&tea.ModShift != 0 {
-			return true
-		}
-	}
-
-	// Special keys (non-printable): match by code rune
-	switch keyStr {
-	case "enter":
-		return key.Code == tea.KeyEnter
-	case "escape":
-		return key.Code == tea.KeyEscape
-	case "backspace":
-		return key.Code == tea.KeyBackspace
-	case "delete":
-		return key.Code == tea.KeyDelete
-	case "insert":
-		return key.Code == tea.KeyInsert
-	case "home":
-		return key.Code == tea.KeyHome
-	case "end":
-		return key.Code == tea.KeyEnd
-	case "pageUp":
-		return key.Code == tea.KeyPgUp
-	case "pageDown":
-		return key.Code == tea.KeyPgDown
-	case "up":
-		return key.Code == tea.KeyUp
-	case "down":
-		return key.Code == tea.KeyDown
-	case "left":
-		return key.Code == tea.KeyLeft
-	case "right":
-		return key.Code == tea.KeyRight
-	case "tab":
-		return key.Code == tea.KeyTab
-	case "space":
-		return key.Code == tea.KeySpace
-	case "f1":
-		return key.Code == tea.KeyF1
-	case "f2":
-		return key.Code == tea.KeyF2
-	case "f12":
-		return key.Code == tea.KeyF12
-	}
-
-	// Single character keys
-	if len(keyStr) == 1 {
-		if key.Code != 0 {
-			return string(key.Code) == keyStr
-		}
-		if key.Text != "" {
-			return key.Text == keyStr
-		}
-	}
-
-	return false
 }
 
-type keyDesc struct {
-	key   string
-	ctrl  bool
-	shift bool
-	alt   bool
+// ShortHelp returns keybindings to be shown in the mini help view.
+func (k KeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Help, k.Esc, k.Enter, k.CtrlP, k.CtrlO}
 }
 
-func parseKeyId(keyId KeyId) *keyDesc {
-	if keyId == "" {
-		return nil
+// FullHelp returns keybindings to be shown in the full help view.
+func (k KeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Up, k.Down, k.PageUp, k.PageDown},
+		{k.Enter, k.ShiftEnter, k.CtrlEnter},
+		{k.Esc, k.CtrlC, k.Tab},
+		{k.CtrlO, k.CtrlP, k.Help},
 	}
-
-	parts := strings.SplitN(string(keyId), "+", 3)
-	if len(parts) == 1 {
-		return &keyDesc{key: parts[0]}
-	}
-
-	// Two parts: modifier+key
-	if len(parts) == 2 {
-		mod := parts[0]
-		k := parts[1]
-		switch mod {
-		case "ctrl":
-			return &keyDesc{key: k, ctrl: true}
-		case "shift":
-			return &keyDesc{key: k, shift: true}
-		case "alt":
-			return &keyDesc{key: k, alt: true}
-		}
-	}
-
-	// Three parts: ctrl+shift+key, ctrl+alt+key, shift+ctrl+key, etc.
-	if len(parts) == 3 {
-		mod1, mod2 := parts[0], parts[1]
-		k := parts[2]
-		switch {
-		case mod1 == "ctrl" && mod2 == "shift":
-			return &keyDesc{key: k, ctrl: true, shift: true}
-		case mod1 == "shift" && mod2 == "ctrl":
-			return &keyDesc{key: k, ctrl: true, shift: true}
-		case mod1 == "ctrl" && mod2 == "alt":
-			return &keyDesc{key: k, ctrl: true, alt: true}
-		case mod1 == "alt" && mod2 == "ctrl":
-			return &keyDesc{key: k, ctrl: true, alt: true}
-		}
-	}
-
-	return nil
 }
+

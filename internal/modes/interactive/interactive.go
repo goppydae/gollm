@@ -48,8 +48,8 @@ func Run(client pb.AgentServiceClient, sessionID string, cfg *config.Config, the
 		initialInput = strings.Join(args, " ")
 	}
 
-	m := newModel(modelName, providerName, string(cfg.ThinkingLevel), contextWindow, client, sessionID, eventCh, mgr, cfg, initialInput)
-	m.style = themes.NewStyle(*theme)
+	style := themes.NewStyle(*theme)
+	m := newModel(modelName, providerName, string(cfg.ThinkingLevel), contextWindow, client, sessionID, eventCh, mgr, cfg, initialInput, style)
 	m.syncHistoryFromService()
 	m.models = cfg.Models
 	m.modelIndex = 0

@@ -15,7 +15,7 @@ import (
 // ANSI output is written to /tmp/gollm-render-output.txt for inspection.
 func TestRenderOutput(t *testing.T) {
 	eventCh := make(chan *pb.AgentEvent, 64)
-	m := newModel("gpt-4", "test", "medium", 128000, nil, "", eventCh, session.NewManager(""), config.DefaultConfig(), "")
+	m := newModel("gpt-4", "test", "medium", 128000, nil, "", eventCh, session.NewManager(""), config.DefaultConfig(), "", themes.NewStyle(*themes.DarkTheme()))
 	m.style = NewStyle(*themes.DarkTheme())
 
 	// Wide viewport so text isn't truncated
@@ -61,7 +61,7 @@ func TestRenderOutput(t *testing.T) {
 // TestRenderInitialState renders the idle TUI with no messages.
 func TestRenderInitialState(t *testing.T) {
 	eventCh := make(chan *pb.AgentEvent, 64)
-	m := newModel("llama3", "ollama", "low", 0, nil, "", eventCh, session.NewManager(""), config.DefaultConfig(), "")
+	m := newModel("llama3", "ollama", "low", 0, nil, "", eventCh, session.NewManager(""), config.DefaultConfig(), "", themes.NewStyle(*themes.DarkTheme()))
 	m.style = NewStyle(*themes.DarkTheme())
 	m.onResize(100, 24)
 
@@ -79,7 +79,7 @@ func TestRenderInitialState(t *testing.T) {
 // TestRenderWithToolCalls renders with simulated tool calls in progress.
 func TestRenderWithToolCalls(t *testing.T) {
 	eventCh := make(chan *pb.AgentEvent, 64)
-	m := newModel("gpt-4", "test", "medium", 128000, nil, "", eventCh, session.NewManager(""), config.DefaultConfig(), "")
+	m := newModel("gpt-4", "test", "medium", 128000, nil, "", eventCh, session.NewManager(""), config.DefaultConfig(), "", themes.NewStyle(*themes.DarkTheme()))
 	m.style = NewStyle(*themes.DarkTheme())
 	m.onResize(160, 30)
 

@@ -2,12 +2,16 @@ package interactive
 
 import (
 	"fmt"
+	"io"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/goppydae/gollm/internal/session"
-
+	tea "charm.land/bubbletea/v2"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/list"
+	"charm.land/bubbles/v2/table"
 	lipgloss "charm.land/lipgloss/v2"
 )
 
@@ -19,20 +23,38 @@ const (
 	modalStats
 	modalConfig
 	modalTree
+	modalModels
+	modalHelp
 )
 
-const treePageSize = 8 // nodes per page in the tree modal
 
 // modalState holds the state of a modal overlay.
 type modalState struct {
 	kind    modalKind
-	content string // pre-rendered text content
 	title   string
 	visible bool
-	cursor  int // for interactive modals (like tree)
-	offset  int // scroll offset for paginated modals
-	nodes   []session.FlatNode
+	table   table.Model
+	list    list.Model
 }
+
+// treeItem implements list.Item for the session tree.
+type treeItem struct {
+	node session.FlatNode
+}
+
+func (i treeItem) Title() string       { return i.node.Node.ID }
+func (i treeItem) Description() string { return i.node.Node.FirstMessage }
+func (i treeItem) FilterValue() string { return i.node.Node.ID + " " + i.node.Node.Name }
+
+// modelItem implements list.Item for the model selection.
+type modelItem struct {
+	name     string
+	provider string
+}
+
+func (i modelItem) Title() string       { return i.name }
+func (i modelItem) Description() string { return i.provider }
+func (i modelItem) FilterValue() string { return i.name + " " + i.provider }
 
 // newModal creates an idle modal state.
 func newModal() modalState {
@@ -43,155 +65,225 @@ func newModal() modalState {
 }
 
 func (m *modalState) openStatsModal(stats agentStats, style Style) {
-	bg := style.PanelBgColor()
-	header := lipgloss.NewStyle().Foreground(style.AccentColor()).Background(bg).Bold(true).Underline(true)
-
-	var sb strings.Builder
-	addKV := func(k, v string) {
-		renderKV(&sb, k, v, 15, style)
-	}
-
-	sb.WriteString(header.Render("Session Info"))
-	sb.WriteString("\n\n")
-	if stats.Name != "" {
-		addKV("Name:", stats.Name)
-	}
-	addKV("ID:", stats.SessionID)
-	if stats.ParentID != "" {
-		addKV("Parent ID:", stats.ParentID)
-	}
-	addKV("File:", filepath.Base(stats.SessionFile))
-	addKV("Path:", filepath.Dir(stats.SessionFile))
-	addKV("Created:", stats.CreatedAt.Format("Jan 02 15:04:05"))
-	addKV("Updated:", stats.UpdatedAt.Format("Jan 02 15:04:05"))
-	addKV("Model:", stats.Model)
-	addKV("Provider:", stats.Provider)
-	addKV("Thinking:", stats.Thinking)
-	sb.WriteString("\n")
-
-	sb.WriteString(header.Render("Messages"))
-	sb.WriteString("\n\n")
-	addKV("User:", strconv.Itoa(stats.UserMessages))
-	addKV("Assistant:", strconv.Itoa(stats.AssistantMsgs))
-	addKV("Tool Calls:", strconv.Itoa(stats.ToolCalls))
-	addKV("Tool Results:", strconv.Itoa(stats.ToolResults))
-	addKV("Total:", strconv.Itoa(stats.TotalMessages))
-	sb.WriteString("\n")
-
-	sb.WriteString(header.Render("Tokens"))
-	sb.WriteString("\n\n")
-	addKV("Input:", strconv.Itoa(stats.InputTokens))
-	addKV("Output:", strconv.Itoa(stats.OutputTokens))
-	if stats.CacheRead > 0 {
-		addKV("Cache Read:", strconv.Itoa(stats.CacheRead))
-	}
-	if stats.CacheWrite > 0 {
-		addKV("Cache Write:", strconv.Itoa(stats.CacheWrite))
-	}
-	addKV("Turn Total:", strconv.Itoa(stats.TotalTokens))
-	addKV("Context:", fmt.Sprintf("%d / %d", stats.ContextTokens, stats.ContextWindow))
-
-	if stats.Cost > 0 {
-		sb.WriteString("\n")
-		sb.WriteString(header.Render("Cost"))
-		sb.WriteString("\n\n")
-		addKV("Total:", fmt.Sprintf("$%.4f", stats.Cost))
-	}
-
 	m.kind = modalStats
 	m.title = "Session Stats"
-	m.content = sb.String()
 	m.visible = true
+
+	columns := []table.Column{
+		{Title: "Property", Width: 20},
+		{Title: "Value", Width: 40},
+	}
+
+	rows := []table.Row{
+		{"ID", stats.SessionID},
+		{"File", filepath.Base(stats.SessionFile)},
+		{"Created", stats.CreatedAt.Format("Jan 02 15:04:05")},
+		{"Updated", stats.UpdatedAt.Format("Jan 02 15:04:05")},
+		{"Model", stats.Model},
+		{"Provider", stats.Provider},
+		{"Thinking", stats.Thinking},
+		{"---", "---"},
+		{"User Msg", strconv.Itoa(stats.UserMessages)},
+		{"Assistant Msg", strconv.Itoa(stats.AssistantMsgs)},
+		{"Total Msg", strconv.Itoa(stats.TotalMessages)},
+		{"---", "---"},
+		{"Input Tokens", strconv.Itoa(stats.InputTokens)},
+		{"Output Tokens", strconv.Itoa(stats.OutputTokens)},
+		{"Total Tokens", strconv.Itoa(stats.TotalTokens)},
+		{"Context", fmt.Sprintf("%d / %d", stats.ContextTokens, stats.ContextWindow)},
+	}
+
+	if stats.Cost > 0 {
+		rows = append(rows, table.Row{"Cost", fmt.Sprintf("$%.4f", stats.Cost)})
+	}
+
+	t := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(true),
+		table.WithHeight(15),
+	)
+
+	s := table.DefaultStyles()
+	s.Header = s.Header.
+		Foreground(style.AccentColor()).
+		Bold(true)
+	s.Selected = s.Selected.
+		Foreground(style.AccentColor()).
+		Bold(false)
+	t.SetStyles(s)
+
+	m.table = t
 }
 
 func (m *modalState) openConfigModal(model, provider, thinking, theme, mode string,
 	ollamaURL, openaiURL, anthropicKeySet, llamacppURL string,
 	compactionEnabled bool, reserveTokens, keepRecentTokens int, style Style) {
 
-	bg := style.PanelBgColor()
-	header := lipgloss.NewStyle().Foreground(style.AccentColor()).Background(bg).Bold(true).Underline(true)
-
-	var sb strings.Builder
-	addKV := func(k, v string) {
-		renderKV(&sb, k, v, 20, style)
-	}
-
-	sb.WriteString(header.Render("Core"))
-	sb.WriteString("\n\n")
-	addKV("Model:", model)
-	addKV("Provider:", provider)
-	addKV("Thinking:", thinking)
-	addKV("Theme:", theme)
-	addKV("Mode:", mode)
-	sb.WriteString("\n")
-
-	sb.WriteString(header.Render("API Base URLs"))
-	sb.WriteString("\n\n")
-	addKV("Ollama:", ollamaURL)
-	addKV("OpenAI:", openaiURL)
-	addKV("Anthropic:", anthropicKeySet)
-	addKV("llama.cpp:", llamacppURL)
-	sb.WriteString("\n")
-
-	sb.WriteString(header.Render("Context Compaction"))
-	sb.WriteString("\n\n")
-	compState := "Disabled"
-	if compactionEnabled {
-		compState = "Enabled"
-	}
-	addKV("Status:", compState)
-	addKV("Reserve Tokens:", strconv.Itoa(reserveTokens))
-	addKV("Keep Recent:", strconv.Itoa(keepRecentTokens))
-
 	m.kind = modalConfig
 	m.title = "Configuration"
-	m.content = sb.String()
 	m.visible = true
+
+	columns := []table.Column{
+		{Title: "Setting", Width: 20},
+		{Title: "Value", Width: 40},
+	}
+
+	rows := []table.Row{
+		{"Model", model},
+		{"Provider", provider},
+		{"Thinking", thinking},
+		{"Theme", theme},
+		{"Mode", mode},
+		{"---", "---"},
+		{"Ollama URL", ollamaURL},
+		{"OpenAI URL", openaiURL},
+		{"Anthropic Key", anthropicKeySet},
+		{"llama.cpp URL", llamacppURL},
+		{"---", "---"},
+		{"Compaction", strconv.FormatBool(compactionEnabled)},
+		{"Reserve Tokens", strconv.Itoa(reserveTokens)},
+		{"Keep Recent", strconv.Itoa(keepRecentTokens)},
+	}
+
+	t := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(true),
+		table.WithHeight(15),
+	)
+
+	s := table.DefaultStyles()
+	s.Header = s.Header.
+		Foreground(style.AccentColor()).
+		Bold(true)
+	s.Selected = s.Selected.
+		Foreground(style.AccentColor()).
+		Bold(false)
+	t.SetStyles(s)
+
+	m.table = t
 }
 
-func renderKV(sb *strings.Builder, k, v string, width int, style Style) {
-	bg := style.PanelBgColor()
-	bold := lipgloss.NewStyle().Bold(true).Background(bg)
-	valStyle := lipgloss.NewStyle().Background(bg)
+// treeDelegate handles rendering for session tree items.
+type treeDelegate struct {
+	style     Style
+	currentID string
+}
 
-	sb.WriteString(bold.Render(fmt.Sprintf("%-*s", width, k)))
-	sb.WriteString(valStyle.Render(" " + v))
-	sb.WriteString("\n")
+func (d treeDelegate) Height() int                               { return 1 } //nolint:unused
+func (d treeDelegate) Spacing() int                              { return 0 } //nolint:unused
+func (d treeDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd { return nil } //nolint:unused
+func (d treeDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) { //nolint:unused
+	i, ok := listItem.(treeItem)
+	if !ok {
+		return
+	}
+
+	n := i.node
+	bg := d.style.PanelBgColor()
+	
+	// Selection cursor
+	cursor := "  "
+	cursorStyle := lipgloss.NewStyle().Background(bg).Foreground(d.style.MutedTextColor())
+	if index == m.Index() {
+		cursor = "› "
+		cursorStyle = cursorStyle.Foreground(d.style.AccentColor())
+	}
+
+	// Indent and tree structure
+	var prefix strings.Builder
+	gutterMap := make(map[int]bool)
+	for _, g := range n.Gutters {
+		if g.Show {
+			gutterMap[g.Position] = true
+		}
+	}
+	connectorPos := -1
+	if n.ShowConnector {
+		connectorPos = n.Indent - 1
+	}
+	for l := 0; l < n.Indent; l++ {
+		if l == connectorPos {
+			if n.IsLast {
+				prefix.WriteString("└─")
+			} else {
+				prefix.WriteString("├─")
+			}
+		} else if gutterMap[l] {
+			prefix.WriteString("│ ")
+		} else {
+			prefix.WriteString("  ")
+		}
+	}
+
+	activeMarker := " "
+	activeStyle := lipgloss.NewStyle().Background(bg)
+	if n.Node.ID == d.currentID {
+		activeMarker = "•"
+		activeStyle = activeStyle.Foreground(d.style.AccentColor())
+	}
+
+	labelStyle := lipgloss.NewStyle().Background(bg).Foreground(d.style.MutedTextColor())
+	if index == m.Index() {
+		labelStyle = labelStyle.Foreground(d.style.AccentColor()).Bold(true)
+	}
+
+	// Session Info Columns
+	firstMsg := n.Node.FirstMessage
+	if len(firstMsg) > 15 {
+		firstMsg = firstMsg[:12] + "..."
+	}
+	firstMsg = strings.ReplaceAll(firstMsg, "\n", " ")
+
+	info := fmt.Sprintf("%-36s │ %-15s │ %s │ %s", n.Node.ID, firstMsg, n.Node.CreatedAt.Format("Jan 02 15:04"), n.Node.UpdatedAt.Format("Jan 02 15:04"))
+
+	cStr := cursorStyle.Render(cursor)
+	// Use a fixed width for the tree prefix area to keep columns aligned
+	pStr := lipgloss.NewStyle().Background(bg).Foreground(d.style.MutedTextColor()).Width(24).Render(prefix.String())
+	aStr := activeStyle.Render(activeMarker)
+	lStr := labelStyle.Render(info)
+
+	_, _ = fmt.Fprint(w, aStr+cStr+pStr+" "+lStr)
 }
 
 // close hides the modal.
 func (m *modalState) close() {
 	m.kind = modalNone
 	m.visible = false
-	m.content = ""
 }
 
 // render draws the modal as a centered box.
-func (m *modalState) render(width, height int, style Style) string {
+func (m *modalState) render(width, height int, style Style, h help.Model, k KeyMap) string {
 	if !m.visible {
 		return ""
 	}
 
-	// Modal dimensions: 80% of screen, min 60, max 120
-	modalW := width * 8 / 10
-	if modalW < 60 {
-		modalW = width
-	}
-	if modalW > 120 {
-		modalW = 120
+	modalW := width * 9 / 10
+	if modalW > 140 { modalW = 140 }
+	modalH := height * 8 / 10
+
+	var content string
+	switch m.kind {
+	case modalStats, modalConfig:
+		m.table.SetWidth(modalW - 6)
+		content = m.table.View()
+	case modalTree, modalModels:
+		m.list.SetSize(modalW-6, modalH-6)
+		content = m.list.View()
+	case modalHelp:
+		// help uses the helper bubble
+		h.ShowAll = true // Always show full help in modal
+		content = h.View(k)
 	}
 
-	// Border style
 	borderStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(style.AccentColor()).
 		Background(style.PanelBgColor()).
 		Padding(1, 2)
 
-	// Inner width accounts for 2 cells border + 4 cells padding
 	innerW := modalW - 6
-
-	// Title style
 	titleStyle := lipgloss.NewStyle().
 		Foreground(style.PanelBgColor()).
 		Background(style.AccentColor()).
@@ -199,222 +291,87 @@ func (m *modalState) render(width, height int, style Style) string {
 		Padding(0, 1).
 		Width(innerW)
 
-	// Content style
-	contentStyle := lipgloss.NewStyle().
-		Foreground(style.MutedTextColor()).
-		Background(style.PanelBgColor())
-
-	// Render title
 	titleBlock := titleStyle.Render(m.title)
+	inner := lipgloss.JoinVertical(lipgloss.Left, titleBlock, "", content)
 
-	// Render content
-	contentLines := strings.Split(m.content, "\n")
-	var renderedLines []string
-	for _, line := range contentLines {
-		if m.kind == modalTree {
-			// Truncate instead of wrapping for tree to preserve structure
-			if lipgloss.Width(line) > innerW {
-				line = line[:innerW] // Note: rough truncation, ideally use a rune-aware version
-			}
-			renderedLines = append(renderedLines, contentStyle.Width(innerW).Render(line))
-		} else {
-			wrapped := lipgloss.Wrap(line, innerW, "")
-			for _, wl := range strings.Split(wrapped, "\n") {
-				renderedLines = append(renderedLines, contentStyle.Width(innerW).Render(wl))
-			}
-		}
-	}
-
-	// Build the inner layout
-	// Spacer also needs to fill the width with the background
-	spacer := contentStyle.Width(innerW).Render("")
-
-	inner := lipgloss.JoinVertical(lipgloss.Left,
-		titleBlock,
-		spacer,
-		strings.Join(renderedLines, "\n"),
-	)
-
-	// Apply border and final dimensions
-	res := borderStyle.Width(modalW).Render(inner)
-
-	// Truncate if height exceeds screen
-	if lipgloss.Height(res) > height-2 {
-		res = borderStyle.Width(modalW).Height(height - 2).Render(inner)
-	}
-
-	return res
+	return borderStyle.Width(modalW).Render(inner)
 }
 
 // openTreeModal builds the session tree overlay content.
 func (m *modalState) openTreeModal(nodes []session.FlatNode, currentID string, style Style) {
 	m.kind = modalTree
 	m.title = "Session Tree"
-	m.nodes = nodes
 	m.visible = true
-	m.cursor = 0
 
-	// Set cursor to current session if found
+	items := make([]list.Item, len(nodes))
+	startIndex := 0
 	for i, n := range nodes {
+		items[i] = treeItem{node: n}
 		if n.Node.ID == currentID {
-			m.cursor = i
-			break
+			startIndex = i
 		}
 	}
 
-	// Initialize offset to keep cursor in view
-	m.offset = 0
-	if m.cursor >= treePageSize {
-		m.offset = m.cursor - treePageSize + 1
-	}
+	l := list.New(items, treeDelegate{style: style, currentID: currentID}, 0, 0)
+	l.SetShowHelp(false)
+	l.SetShowTitle(false)
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(false)
+	l.Select(startIndex)
 
-	m.refreshTreeContent(currentID, style)
+	m.list = l
 }
 
-func (m *modalState) refreshTreeContent(currentID string, style Style) {
-	bg := style.PanelBgColor()
-	var sb strings.Builder
+// modelDelegate handles rendering for model selection items.
+type modelDelegate struct {
+	style Style
+}
 
-	// Header Row
-	col1Width := 55
-	col2Width := 25
-	metaStyle := lipgloss.NewStyle().Background(bg).Foreground(style.MutedTextColor()).Italic(true)
-	headerStyle := lipgloss.NewStyle().Background(bg).Foreground(style.AccentColor()).Bold(true)
-
-	h1 := headerStyle.Width(col1Width).Render(" SESSION")
-	h2 := headerStyle.Width(col2Width).Render("DESCRIPTION")
-	h3 := headerStyle.Width(14).Render("CREATED")
-	h4 := headerStyle.Width(14).Render("UPDATED")
-	sb.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, h1, "  ", h2, "  ", h3, "  ", h4))
-	sb.WriteString("\n")
-	sb.WriteString(lipgloss.NewStyle().Foreground(style.Bordered()).Background(bg).Render(strings.Repeat("─", col1Width+col2Width+14+14+6)))
-	sb.WriteString("\n")
-
-	end := m.offset + treePageSize
-	if end > len(m.nodes) {
-		end = len(m.nodes)
+func (d modelDelegate) Height() int                               { return 1 }
+func (d modelDelegate) Spacing() int                              { return 0 }
+func (d modelDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd { return nil }
+func (d modelDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+	i, ok := listItem.(modelItem)
+	if !ok {
+		return
 	}
 
-	for i := m.offset; i < end; i++ {
-		n := m.nodes[i]
-
-		// Selection cursor / active-session marker
-		cursor := "  "
-		cursorStyle := lipgloss.NewStyle().Background(bg).Foreground(style.MutedTextColor())
-		if i == m.cursor {
-			cursor = "› "
-			cursorStyle = cursorStyle.Foreground(style.AccentColor())
-		}
-
-		// Build prefix with gutters at their correct positions
-		displayIndent := n.Indent
-
-		var prefix strings.Builder
-		gutterMap := make(map[int]bool)
-		for _, g := range n.Gutters {
-			if g.Show {
-				gutterMap[g.Position] = true
-			}
-		}
-
-		connectorPos := -1
-		if n.ShowConnector {
-			connectorPos = displayIndent - 1
-		}
-
-		for l := 0; l < displayIndent; l++ {
-			if l == connectorPos {
-				if n.IsLast {
-					prefix.WriteString("└─")
-				} else {
-					prefix.WriteString("├─")
-				}
-			} else if gutterMap[l] {
-				prefix.WriteString("│ ")
-			} else {
-				prefix.WriteString("  ")
-			}
-		}
-
-		prefixStr := prefix.String()
-		activeMarker := " "
-		activeStyle := lipgloss.NewStyle().Background(bg)
-		if n.Node.ID == currentID {
-			activeMarker = "•"
-			activeStyle = activeStyle.Foreground(style.AccentColor())
-		}
-
-		// Label: ID or Name
-		label := n.Node.ID
-		if n.Node.Name != "" {
-			label = n.Node.Name
-		}
-		labelStyle := lipgloss.NewStyle().Background(bg).Foreground(style.MutedTextColor())
-		if i == m.cursor {
-			labelStyle = labelStyle.Foreground(style.AccentColor()).Bold(true)
-		}
-
-		// First message snippet
-		firstMsg := strings.ReplaceAll(strings.TrimSpace(n.Node.FirstMessage), "\n", " ")
-		if firstMsg == "" {
-			firstMsg = "(Empty)"
-		}
-
-		// Column 1: Cursor + Tree + Active + Label (Fixed 55 chars)
-		prefixStyle := lipgloss.NewStyle().Background(bg).Foreground(style.MutedTextColor())
-
-		cStr := cursorStyle.Render(cursor)
-		pStr := prefixStyle.Render(prefixStr)
-		aStr := activeStyle.Render(activeMarker)
-		lStr := labelStyle.Render(label)
-
-		c1Content := aStr + cStr + pStr + " " + lStr
-		if lipgloss.Width(c1Content) > col1Width {
-			// Truncate label if necessary to fit
-			targetLabelWidth := col1Width - lipgloss.Width(cStr+pStr+aStr) - 3
-			if targetLabelWidth > 0 {
-				labelRunes := []rune(label)
-				if len(labelRunes) > targetLabelWidth {
-					label = string(labelRunes[:targetLabelWidth]) + "..."
-				}
-				lStr = labelStyle.Render(label)
-				c1Content = cStr + pStr + aStr + lStr
-			} else {
-				c1Content = c1Content[:col1Width-3] + "..."
-			}
-		}
-		// Pad to fixed width
-		c1 := lipgloss.NewStyle().Background(bg).Width(col1Width).Render(c1Content)
-
-		// Column 2: Snippet (Fixed 25 chars)
-		if lipgloss.Width(firstMsg) > col2Width {
-			firstMsg = firstMsg[:col2Width-3] + "..."
-		}
-		c2 := metaStyle.Width(col2Width).Render(firstMsg)
-
-		// Column 3: Created At (Fixed 14 chars)
-		created := "-"
-		if !n.Node.CreatedAt.IsZero() {
-			created = n.Node.CreatedAt.Format("Jan 02 15:04")
-		}
-		c3 := metaStyle.Width(14).Render(created)
-
-		// Column 4: Updated At (Fixed 14 chars)
-		updated := "-"
-		if !n.Node.UpdatedAt.IsZero() {
-			updated = n.Node.UpdatedAt.Format("Jan 02 15:04")
-		}
-		c4 := metaStyle.Width(14).Render(updated)
-
-		sb.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, c1, "  ", c2, "  ", c3, "  ", c4))
-		sb.WriteString("\n")
+	str := fmt.Sprintf("  %s (%s)", i.name, i.provider)
+	fn := d.style.Muted().Render
+	if index == m.Index() {
+		fn = d.style.StatusWorking().Bold(true).Render
+		str = "> " + str[2:]
 	}
 
-	sb.WriteString("\n")
-	pagination := fmt.Sprintf("Page %d/%d (%d sessions total)", (m.offset/treePageSize)+1, (len(m.nodes)+treePageSize-1)/treePageSize, len(m.nodes))
-	sb.WriteString(lipgloss.NewStyle().Background(bg).Foreground(style.MutedTextColor()).Italic(true).Render(pagination))
-	sb.WriteString("\n")
-	sb.WriteString(lipgloss.NewStyle().Background(bg).Foreground(style.MutedTextColor()).Italic(true).Render("↑/↓: Navigate • Enter: Resume • B: Branch • Esc: Close"))
+	_, _ = fmt.Fprint(w, fn(str))
+}
 
-	m.content = sb.String()
+func (m *modalState) openModelsModal(availableModels []string, currentModel string, style Style) {
+	m.kind = modalModels
+	m.title = "Select Model"
+	m.visible = true
+
+	items := make([]list.Item, len(availableModels))
+	startIndex := 0
+	for i, mstr := range availableModels {
+		name := mstr
+		provider := "default"
+		if idx := strings.IndexByte(mstr, '/'); idx >= 0 {
+			provider = mstr[:idx]
+			name = mstr[idx+1:]
+		}
+		items[i] = modelItem{name: name, provider: provider}
+		if name == currentModel {
+			startIndex = i
+		}
+	}
+
+	l := list.New(items, modelDelegate{style: style}, 0, 0)
+	l.SetShowHelp(false)
+	l.SetShowTitle(false)
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(true)
+	l.Select(startIndex)
+
+	m.list = l
 }

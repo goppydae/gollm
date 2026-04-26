@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/progress"
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/stopwatch"
@@ -148,20 +150,16 @@ func (m *model) currentInputHeight() int {
 
 func (m *model) vpHeight() int {
 	pickerH := 0
-	if m.picker.Open {
-		if len(m.picker.Matches) == 0 {
-			pickerH = 1
-		} else {
-			pickerH = pickerPageSize
-		}
+	if m.pickerOpen {
+		pickerH = m.picker.Height()
 	}
 	return m.height - headerHeight - m.currentInputHeight() - footerHeight - separatorHeight - pickerH
 }
 
 func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	key := msg.Key()
+	k := msg.Key()
 
-	if key.Mod == tea.ModCtrl && key.Code == 'c' {
+	if k.Mod == tea.ModCtrl && k.Code == 'c' {
 		_, _ = m.client.Abort(context.Background(), &pb.AbortRequest{SessionId: m.sessionID})
 		m.cancel()
 		m.input.SetValue("")
@@ -176,17 +174,17 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.handleModalKey(msg)
 	}
 
-	if m.picker.Open {
+	if m.pickerOpen {
 		return m.handlePickerKey(msg)
 	}
 
-	if key.Code == tea.KeyEscape {
+	if k.Code == tea.KeyEscape {
 		if m.modal.visible {
 			m.modal.close()
 			return m, listenForEvent(m.eventCh)
 		}
-		if m.picker.Open {
-			m.picker.Close()
+		if m.pickerOpen {
+			m.pickerOpen = false
 			m.vp.SetHeight(m.vpHeight())
 			return m, listenForEvent(m.eventCh)
 		}
@@ -202,7 +200,7 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, listenForEvent(m.eventCh)
 	}
 
-	if Matches(msg, K.Up()) {
+	if key.Matches(msg, m.keys.Up) {
 		if m.input.Line() > 0 {
 			var cmd tea.Cmd
 			m.input, cmd = m.input.Update(msg)
@@ -225,7 +223,7 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if Matches(msg, K.Down()) {
+	if key.Matches(msg, m.keys.Down) {
 		if m.input.Line() < m.input.LineCount()-1 {
 			var cmd tea.Cmd
 			m.input, cmd = m.input.Update(msg)
@@ -246,14 +244,14 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if Matches(msg, K.Shift("enter")) {
+	if key.Matches(msg, m.keys.ShiftEnter) {
 		m.input.InsertString("\n")
 		m.input.SetHeight(m.currentInputHeight())
 		m.vp.SetHeight(m.vpHeight())
 		return m, nil
 	}
 
-	if Matches(msg, K.Ctrl("enter")) {
+	if key.Matches(msg, m.keys.CtrlEnter) {
 		if m.input.Value() == "" {
 			return m, nil
 		}
@@ -292,7 +290,7 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, listenForEvent(m.eventCh)
 	}
 
-	if key.Code == tea.KeyEnter && key.Mod == 0 {
+	if k.Code == tea.KeyEnter && k.Mod == 0 {
 		if m.input.Value() == "" {
 			return m, nil
 		}
@@ -442,48 +440,31 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.refreshViewport(), listenForEvent(m.eventCh)
 	}
 
-	if Matches(msg, K.Ctrl("o")) {
+	if key.Matches(msg, m.keys.Help) {
+		m.modal.kind = modalHelp
+		m.modal.title = "Help"
+		m.modal.visible = true
+		return m, nil
+	}
+
+	if key.Matches(msg, m.keys.CtrlO) {
 		m.toolCallsExpanded = !m.toolCallsExpanded
 		m.chatContent = m.buildChatContent()
 		m.vp.SetContent(m.chatContent)
 		return m, listenForEvent(m.eventCh)
 	}
 
-	if Matches(msg, K.Ctrl("p")) && len(m.models) > 0 {
+	if key.Matches(msg, m.keys.CtrlP) && len(m.models) > 0 {
 		if m.isRunning {
 			m.history = append(m.history, historyEntry{role: "warning", items: []contentItem{{kind: contentItemText, text: "Cannot switch models while agent is running. Abort first with Esc."}}})
 			return m.refreshViewport(), listenForEvent(m.eventCh)
 		}
-		m.modelIndex = (m.modelIndex + 1) % len(m.models)
-		next := strings.TrimSpace(m.models[m.modelIndex])
-		providerName := m.config.Provider
-		modelName := next
-		if idx := strings.IndexByte(next, '/'); idx >= 0 {
-			providerName = next[:idx]
-			modelName = next[idx+1:]
-		}
-		req := &pb.ConfigureSessionRequest{
-			SessionId: m.sessionID,
-			Model:     ptr(modelName),
-		}
-		if providerName != m.config.Provider {
-			req.Provider = ptr(providerName)
-		}
-		if _, err := m.client.ConfigureSession(context.Background(), req); err != nil {
-			m.history = append(m.history, historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: err.Error()}}})
-			return m.refreshViewport(), listenForEvent(m.eventCh)
-		}
-		m.modelName = modelName
-		m.provider = providerName
-		m.config.Provider = providerName
-		m.config.Model = modelName
-		notice := fmt.Sprintf("Switched model → %s", next)
-		m.history = append(m.history, historyEntry{role: "info", items: []contentItem{{kind: contentItemText, text: notice}}})
-		return m.refreshViewport(), listenForEvent(m.eventCh)
+		m.modal.openModelsModal(m.models, m.modelName, m.style)
+		return m, nil
 	}
 
-	if key.Code == tea.KeyUp || key.Code == tea.KeyDown ||
-		key.Code == tea.KeyPgUp || key.Code == tea.KeyPgDown {
+	if k.Code == tea.KeyUp || k.Code == tea.KeyDown ||
+		k.Code == tea.KeyPgUp || k.Code == tea.KeyPgDown {
 		var cmd tea.Cmd
 		m.vp, cmd = m.vp.Update(msg)
 		m.userScrolled = !m.vp.AtBottom()
@@ -499,31 +480,26 @@ func (m *model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) handlePickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	if m.picker.Update(msg) {
-		return m, nil
-	}
-
-	key := msg.Key()
-	switch key.Code {
-	case tea.KeyEscape:
-		m.picker.Close()
+	switch {
+	case key.Matches(msg, m.keys.Esc):
+		m.pickerOpen = false
 		m.vp.SetHeight(m.vpHeight())
+		return m, nil
 
-	case tea.KeyEnter, tea.KeyTab:
-		selected, ok := m.picker.Selected()
-		if ok {
-			switch m.picker.Kind {
+	case key.Matches(msg, m.keys.Enter), key.Matches(msg, m.keys.Tab):
+		selectedItem := m.picker.SelectedItem()
+		if selectedItem != nil {
+			item := selectedItem.(pickerItem)
+			selected := item.value
+			switch item.kind {
 			case pickerTypeSlash:
 				m.input.SetValue("/" + selected + " ")
-				m.picker.Close()
-				m.vp.SetHeight(m.vpHeight())
+				m.pickerOpen = false
 				m = m.updatePicker()
 				m.vp.SetHeight(m.vpHeight())
 				return m, nil
 			case pickerTypeSession:
-				parts := strings.Split(selected, " | ")
-				id := parts[0]
-				m.input.SetValue("/resume " + id)
+				m.input.SetValue("/resume " + selected)
 			case pickerTypeSkill:
 				prefix := "skill:"
 				if strings.Contains(m.input.Value(), "/skill ") {
@@ -542,49 +518,32 @@ func (m *model) handlePickerKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-		m.picker.Close()
+		m.pickerOpen = false
 		m.vp.SetHeight(m.vpHeight())
-
-	default:
+		return m, nil
+	case key.Matches(msg, m.keys.Up), key.Matches(msg, m.keys.Down), key.Matches(msg, m.keys.PageUp), key.Matches(msg, m.keys.PageDown):
 		var cmd tea.Cmd
-		m.input, cmd = m.input.Update(msg)
-		m = m.updatePicker()
-		m.vp.SetHeight(m.vpHeight())
+		m.picker, cmd = m.picker.Update(msg)
 		return m, cmd
 	}
-	return m, nil
+
+	var cmd tea.Cmd
+	m.input, cmd = m.input.Update(msg)
+	m = m.updatePicker()
+	m.vp.SetHeight(m.vpHeight())
+	return m, cmd
 }
 
 func (m *model) handleModalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	key := msg.Key()
-	switch key.Code {
-	case tea.KeyEscape:
+	k := msg.Key()
+	switch {
+	case key.Matches(msg, m.keys.Esc):
 		m.modal.close()
 		return m, listenForEvent(m.eventCh)
 
-	case tea.KeyUp:
-		if m.modal.kind == modalTree && m.modal.cursor > 0 {
-			m.modal.cursor--
-			if m.modal.cursor < m.modal.offset {
-				m.modal.offset = m.modal.cursor
-			}
-			m.modal.refreshTreeContent(m.sessionID, m.style)
-		}
-		return m, nil
-
-	case tea.KeyDown:
-		if m.modal.kind == modalTree && m.modal.cursor < len(m.modal.nodes)-1 {
-			m.modal.cursor++
-			if m.modal.cursor >= m.modal.offset+treePageSize {
-				m.modal.offset = m.modal.cursor - treePageSize + 1
-			}
-			m.modal.refreshTreeContent(m.sessionID, m.style)
-		}
-		return m, nil
-
-	case tea.KeyEnter:
-		if m.modal.kind == modalTree && len(m.modal.nodes) > 0 {
-			selected := m.modal.nodes[m.modal.cursor].Node.ID
+	case key.Matches(msg, m.keys.Enter):
+		if m.modal.kind == modalTree {
+			selected := m.modal.list.SelectedItem().(treeItem).node.Node.ID
 			m.modal.close()
 			m.sessionID = selected
 			m.newContext()
@@ -592,82 +551,113 @@ func (m *model) handleModalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.history = append(m.history, historyEntry{role: "info", items: []contentItem{{kind: contentItemText, text: fmt.Sprintf("Switched to session: %s", selected)}}})
 			return m.refreshViewport(), listenForEvent(m.eventCh)
 		}
-
-	default:
-		key := msg.Key()
-		if m.modal.kind == modalTree && key.Code == 'b' && len(m.modal.nodes) > 0 {
-			selected := m.modal.nodes[m.modal.cursor].Node.ID
+		if m.modal.kind == modalModels {
+			selected := m.modal.list.SelectedItem().(modelItem)
 			m.modal.close()
-
-			resp, err := m.client.ForkSession(context.Background(), &pb.ForkSessionRequest{SessionId: selected})
+			m.modelName = selected.name
+			m.provider = selected.provider
+			
+			// Update the service
+			_, err := m.client.ConfigureSession(context.Background(), &pb.ConfigureSessionRequest{
+				SessionId: m.sessionID,
+				Model:     &selected.name,
+				Provider:  &selected.provider,
+			})
 			if err != nil {
-				m.history = append(m.history, historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: fmt.Sprintf("Failed to fork session: %v", err)}}})
-				return m.refreshViewport(), listenForEvent(m.eventCh)
+				m.history = append(m.history, historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: fmt.Sprintf("Failed to update model on service: %v", err)}}})
+			} else {
+				m.history = append(m.history, historyEntry{role: "info", items: []contentItem{{kind: contentItemText, text: fmt.Sprintf("Switched to model: %s (%s)", selected.name, selected.provider)}}})
 			}
-
-			m.sessionID = resp.SessionId
-			m.newContext()
-			m.syncHistoryFromService()
-			m.history = append(m.history, historyEntry{role: "info", items: []contentItem{{kind: contentItemText, text: fmt.Sprintf("Branched from session: %s", selected)}}})
-			m.history = append(m.history, historyEntry{role: "info", items: []contentItem{{kind: contentItemText, text: fmt.Sprintf("New session created: %s", resp.SessionId)}}})
 			return m.refreshViewport(), listenForEvent(m.eventCh)
 		}
+		m.modal.close()
+		return m, nil
+
+	case m.modal.kind == modalTree && k.Code == 'b':
+		selected := m.modal.list.SelectedItem().(treeItem).node.Node.ID
+		m.modal.close()
+
+		resp, err := m.client.ForkSession(context.Background(), &pb.ForkSessionRequest{SessionId: selected})
+		if err != nil {
+			m.history = append(m.history, historyEntry{role: "error", items: []contentItem{{kind: contentItemText, text: fmt.Sprintf("Failed to fork session: %v", err)}}})
+			return m.refreshViewport(), listenForEvent(m.eventCh)
+		}
+
+		m.sessionID = resp.SessionId
+		m.newContext()
+		m.syncHistoryFromService()
+		m.history = append(m.history, historyEntry{role: "info", items: []contentItem{{kind: contentItemText, text: fmt.Sprintf("Branched from session: %s", selected)}}})
+		m.history = append(m.history, historyEntry{role: "info", items: []contentItem{{kind: contentItemText, text: fmt.Sprintf("New session created: %s", resp.SessionId)}}})
+		return m.refreshViewport(), listenForEvent(m.eventCh)
 	}
-	return m, nil
+
+	var cmd tea.Cmd
+	switch m.modal.kind {
+	case modalStats, modalConfig:
+		m.modal.table, cmd = m.modal.table.Update(msg)
+	case modalTree:
+		m.modal.list, cmd = m.modal.list.Update(msg)
+	}
+
+	return m, cmd
 }
 
 func (m *model) updatePicker() *model {
 	val := m.input.Value()
 
-	if strings.HasPrefix(val, "/resume ") {
-		query := val[len("/resume "):]
+	var kind pickerType
+	var query string
+	var items []list.Item
+
+	switch {
+	case strings.HasPrefix(val, "/resume "):
+		kind = pickerTypeSession
+		query = val[len("/resume "):]
 		summaries, _ := m.sessionMgr.ListSummaries()
-		var items []string
 		for _, s := range summaries {
 			firstMsg := s.FirstMessage
 			if len(firstMsg) > 40 {
 				firstMsg = firstMsg[:37] + "..."
 			}
 			firstMsg = strings.ReplaceAll(firstMsg, "\n", " ")
-			items = append(items, fmt.Sprintf("%s | %-40s | C: %s | U: %s",
-				s.ID, firstMsg, s.CreatedAt.Format("Jan 02 15:04"), s.UpdatedAt.Format("Jan 02 15:04")))
+			
+			// Format columns: Full ID | Message | Created | Updated
+			items = append(items, pickerItem{
+				kind:        kind,
+				title:       s.ID,
+				description: fmt.Sprintf("│ %-40s │ %s │ %s", firstMsg, s.CreatedAt.Format("Jan 02 15:04"), s.UpdatedAt.Format("Jan 02 15:04")),
+				value:       s.ID,
+			})
 		}
-		m.picker.Reset(pickerTypeSession, query, items)
-		return m
-	}
 
-	if strings.HasPrefix(val, "/skill:") || strings.HasPrefix(val, "/skill ") {
+	case strings.HasPrefix(val, "/skill:") || strings.HasPrefix(val, "/skill "):
+		kind = pickerTypeSkill
 		prefix := "/skill:"
 		if strings.HasPrefix(val, "/skill ") {
 			prefix = "/skill "
 		}
-		query := val[len(prefix):]
+		query = val[len(prefix):]
 		found, _ := skills.Discover(m.config.SkillPaths...)
-		var names []string
 		for _, s := range found {
-			names = append(names, s.Name)
+			items = append(items, pickerItem{kind: kind, title: s.Name, value: s.Name})
 		}
-		m.picker.Reset(pickerTypeSkill, query, names)
-		return m
-	}
 
-	if strings.HasPrefix(val, "/prompt:") || strings.HasPrefix(val, "/prompt ") {
+	case strings.HasPrefix(val, "/prompt:") || strings.HasPrefix(val, "/prompt "):
+		kind = pickerTypePrompt
 		prefix := "/prompt:"
 		if strings.HasPrefix(val, "/prompt ") {
 			prefix = "/prompt "
 		}
-		query := val[len(prefix):]
+		query = val[len(prefix):]
 		found, _ := prompts.Discover(m.config.PromptTemplatePaths...)
-		var names []string
 		for _, p := range found {
-			names = append(names, strings.TrimSuffix(filepath.Base(p.Path), ".md"))
+			name := strings.TrimSuffix(filepath.Base(p.Path), ".md")
+			items = append(items, pickerItem{kind: kind, title: name, value: name})
 		}
-		m.picker.Reset(pickerTypePrompt, query, names)
-		return m
-	}
 
-	if strings.HasPrefix(val, "/") && !strings.ContainsRune(val, ' ') {
-		query := val[1:]
+	case strings.HasPrefix(val, "/") && !strings.ContainsRune(val, ' '):
+		kind = pickerTypeSlash
+		query = val[1:]
 		var cmds []string
 		cmds = append(cmds, BaseSlashCommands...)
 
@@ -685,21 +675,57 @@ func (m *model) updatePicker() *model {
 		}
 
 		sort.Strings(cmds)
-		m.picker.Reset(pickerTypeSlash, query, cmds)
-		return m
+		for _, c := range cmds {
+			items = append(items, pickerItem{kind: kind, title: c, value: c})
+		}
+
+	default:
+		var ok bool
+		query, _, ok = atFragment(val)
+		if ok {
+			kind = pickerTypeFile
+			files := discoverFiles(".")
+			for _, f := range files {
+				items = append(items, pickerItem{kind: kind, title: f, value: f})
+			}
+		}
 	}
 
-	query, _, ok := atFragment(val)
-	if !ok {
-		m.picker.Close()
-		return m
+	// Filter items
+	var filteredItems []list.Item
+	if query == "" {
+		filteredItems = items
+	} else {
+		lowerQuery := strings.ToLower(query)
+		for _, item := range items {
+			if pi, ok := item.(pickerItem); ok {
+				if strings.Contains(strings.ToLower(pi.title), lowerQuery) || strings.Contains(strings.ToLower(pi.description), lowerQuery) {
+					filteredItems = append(filteredItems, item)
+				}
+			}
+		}
 	}
 
-	if m.fileCache == nil {
-		m.fileCache = discoverFiles(".")
+	if len(filteredItems) > 0 {
+		m.pickerOpen = true
+		if kind != m.lastPickerType || query != m.lastPickerQuery {
+			m.picker.SetItems(filteredItems)
+			m.picker.Select(0)
+			m.lastPickerType = kind
+			m.lastPickerQuery = query
+		}
+		h := len(filteredItems)
+		if h > pickerPageSize {
+			h = pickerPageSize
+		}
+		m.picker.SetSize(m.width, h)
+	} else {
+		m.pickerOpen = false
+		m.picker.SetItems(nil)
+		m.lastPickerType = -1
+		m.lastPickerQuery = ""
 	}
 
-	m.picker.Reset(pickerTypeFile, query, m.fileCache)
 	return m
 }
 

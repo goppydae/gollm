@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/progress"
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/stopwatch"
@@ -82,8 +83,10 @@ type model struct {
 	userScrolled bool
 
 	// Picker state
-	picker Picker
-	fileCache []string
+	picker          list.Model
+	pickerOpen      bool
+	lastPickerType  pickerType
+	lastPickerQuery string
 
 
 	// Input
@@ -96,6 +99,7 @@ type model struct {
 	modal modalState
 
 	// Bubbles components
+	keys        KeyMap
 	spinner     spinner.Model
 	helper      help.Model
 	progressBar progress.Model
@@ -104,28 +108,6 @@ type model struct {
 	initialPrompt string
 }
 
-// Picker holds the state of a generic list-based picker overlay.
-type Picker struct {
-	Open    bool
-	Kind    pickerType
-	Query   string
-	Items   []string
-	Matches []string
-	Cursor  int
-	Page    int
-}
-
-type pickerType int
-
-const (
-	pickerTypeFile pickerType = iota
-	pickerTypeSlash
-	pickerTypeSession
-	pickerTypeSkill
-	pickerTypePrompt
-)
-
-// toolCallEntry stores details about a tool call with its execution status.
 type toolCallEntry struct {
 	id              string
 	name            string

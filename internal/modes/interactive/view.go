@@ -43,15 +43,15 @@ func (m *model) layout() string {
 		Render(renderFooter(m))
 
 	sections := []string{chat, separator()}
-	if m.picker.Open {
-		sections = append(sections, m.picker.View(m.style))
+	if m.pickerOpen {
+		sections = append(sections, m.picker.View())
 	}
 	sections = append(sections, input, separator(), footerText)
 	mainStr := lipgloss.JoinVertical(lipgloss.Top, sections...)
 
 	// Render modal overlay on top using Compositor
 	if m.modal.visible {
-		modalStr := m.modal.render(m.width, m.height, m.style)
+		modalStr := m.modal.render(m.width, m.height, m.style, m.helper, m.keys)
 		if modalStr != "" {
 			bgLayer := lipgloss.NewLayer(mainStr)
 
