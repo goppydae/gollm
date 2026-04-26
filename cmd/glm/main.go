@@ -78,15 +78,18 @@ func rootCmd() *cobra.Command {
 		showVersion bool
 		// Safety flags
 		dryRun bool
+		// gRPC
+		grpcAddr string
 	)
 
 	cmd := &cobra.Command{
 		Use:   "glm [flags] [prompt...]",
 		Short: "glm — local-first AI coding agent",
-		Long: `gollm is a local-first AI agent with three modes:
+		Long: `gollm is a local-first AI agent with several modes:
   --mode tui     Interactive bubbletea TUI (default)
   --mode json    One-shot mode with JSONL output
-  --mode rpc     Interactive RPC mode over stdin/stdout`,
+  --mode rpc     Interactive RPC mode over stdin/stdout
+  --mode grpc    gRPC server (multi-session, default addr :50051)`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.Load()
@@ -180,6 +183,9 @@ func rootCmd() *cobra.Command {
 			if cmd.Flags().Changed("dry-run") {
 				cfg.DryRun = dryRun
 			}
+			if grpcAddr != "" {
+				cfg.GRPCAddr = grpcAddr
+			}
 
 			// Determine mode: --mode flag, then infer from args
 			mode := cfg.Mode
@@ -191,6 +197,8 @@ func rootCmd() *cobra.Command {
 					mode = "json"
 				case "rpc":
 					mode = "rpc"
+				case "grpc":
+					mode = "grpc"
 				default:
 					mode = outputMode
 				}
@@ -312,6 +320,8 @@ func rootCmd() *cobra.Command {
 					})
 			case "rpc":
 				handler = modes.NewRPCHandler(prov, registry, mgr, exts)
+			case "grpc":
+				handler = modes.NewGRPCHandler(prov, registry, mgr, exts, cfg.GRPCAddr)
 			case "interactive":
 				handler = modes.NewInteractiveHandler(prov, registry, mgr, cfg, cfg.Theme, exts,
 					interactive.Options{
@@ -383,6 +393,9 @@ func rootCmd() *cobra.Command {
 	cmd.Flags().StringVar(&listModels, "list-models", "", "List available models (optional fuzzy search)")
 	cmd.Flags().Lookup("list-models").NoOptDefVal = " " // allow bare --list-models
 	cmd.Flags().BoolVarP(&showVersion, "version", "v", false, "Show version number")
+
+	// gRPC
+	cmd.Flags().StringVar(&grpcAddr, "grpc-addr", "", "gRPC server listen address (default :50051)")
 
 	return cmd
 }

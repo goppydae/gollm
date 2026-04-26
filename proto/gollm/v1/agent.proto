@@ -1,0 +1,179 @@
+syntax = "proto3";
+
+package gollm.v1;
+
+option go_package = "github.com/goppydae/gollm/internal/gen/gollm/v1;gollmv1";
+
+// AgentService is the gollm gRPC interface.
+// Each RPC carries a session_id identifying which agent instance to target.
+// Sessions are auto-created on first use.
+service AgentService {
+  // Prompt sends a user message and streams back all agent events until idle.
+  rpc Prompt(PromptRequest) returns (stream AgentEvent);
+
+  // Steer injects a correction into a running turn.
+  rpc Steer(SteerRequest) returns (SteerResponse);
+
+  // Abort stops the current turn.
+  rpc Abort(AbortRequest) returns (AbortResponse);
+
+  // NewSession resets (or creates) a session.
+  rpc NewSession(NewSessionRequest) returns (NewSessionResponse);
+
+  // DeleteSession removes a session from the server.
+  rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionResponse);
+
+  // ListSessions returns all active session IDs.
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+
+  // GetState returns a snapshot of the agent state.
+  rpc GetState(GetStateRequest) returns (GetStateResponse);
+
+  // GetMessages returns the full conversation transcript.
+  rpc GetMessages(GetMessagesRequest) returns (GetMessagesResponse);
+
+  rpc SetModel(SetModelRequest) returns (SetModelResponse);
+  rpc SetThinkingLevel(SetThinkingLevelRequest) returns (SetThinkingLevelResponse);
+  rpc SetSessionName(SetSessionNameRequest) returns (SetSessionNameResponse);
+  rpc Compact(CompactRequest) returns (CompactResponse);
+}
+
+// ── Requests ──────────────────────────────────────────────────────────────────
+
+message PromptRequest {
+  string session_id = 1;
+  string message    = 2;
+  repeated ImageAttachment images = 3;
+}
+
+message ImageAttachment {
+  string mime_type = 1;
+  string data      = 2; // base64-encoded
+}
+
+message SteerRequest            { string session_id = 1; string message = 2; }
+message AbortRequest            { string session_id = 1; }
+message NewSessionRequest       { string session_id = 1; string name = 2; }
+message DeleteSessionRequest    { string session_id = 1; }
+message ListSessionsRequest     {}
+message GetStateRequest         { string session_id = 1; }
+message GetMessagesRequest      { string session_id = 1; }
+message SetModelRequest         { string session_id = 1; string model = 2; }
+message SetThinkingLevelRequest { string session_id = 1; string thinking_level = 2; }
+message SetSessionNameRequest   { string session_id = 1; string name = 2; }
+message CompactRequest          { string session_id = 1; }
+
+// ── Responses ─────────────────────────────────────────────────────────────────
+
+message SteerResponse               { bool ok = 1; }
+message AbortResponse               { bool ok = 1; }
+message DeleteSessionResponse       { bool ok = 1; }
+message SetModelResponse            { bool ok = 1; }
+message SetThinkingLevelResponse    { bool ok = 1; }
+message SetSessionNameResponse      { bool ok = 1; }
+message CompactResponse             { bool ok = 1; }
+
+message NewSessionResponse { string session_id = 1; }
+
+message ListSessionsResponse { repeated SessionSummary sessions = 1; }
+
+message SessionSummary {
+  string session_id = 1;
+  string name       = 2;
+  string lifecycle  = 3;
+  int64  created_at = 4;
+  int64  updated_at = 5;
+}
+
+message GetStateResponse {
+  string session_id     = 1;
+  string model          = 2;
+  string provider       = 3;
+  string thinking_level = 4;
+  string lifecycle      = 5;
+  int32  message_count  = 6;
+}
+
+message GetMessagesResponse { repeated ConversationMessage messages = 1; }
+
+message ConversationMessage {
+  string role      = 1;
+  string content   = 2;
+  int64  timestamp = 3; // unix millis
+}
+
+// ── Streaming event (server → client) ─────────────────────────────────────────
+
+// AgentEvent is the union of every event the agent can emit.
+// Exactly one payload field is set per message.
+message AgentEvent {
+  string session_id = 1;
+
+  oneof payload {
+    AgentStartEvent    agent_start    =  2;
+    TurnStartEvent     turn_start     =  3;
+    MessageStartEvent  message_start  =  4;
+    TextDeltaEvent     text_delta     =  5;
+    ThinkingDeltaEvent thinking_delta =  6;
+    ToolCallEvent      tool_call      =  7;
+    ToolDeltaEvent     tool_delta     =  8;
+    ToolOutputEvent    tool_output    =  9;
+    MessageEndEvent    message_end    = 10;
+    AgentEndEvent      agent_end      = 11;
+    ErrorEvent         error          = 12;
+    AbortEvent         abort          = 13;
+    StateChangeEvent   state_change   = 14;
+    TokensEvent        tokens         = 15;
+    HeartbeatEvent     heartbeat      = 16;
+    CompactStartEvent  compact_start  = 17;
+    CompactEndEvent    compact_end    = 18;
+    QueueUpdateEvent   queue_update   = 19;
+  }
+}
+
+message AgentStartEvent    {}
+message TurnStartEvent     {}
+message MessageStartEvent  {}
+message AgentEndEvent      {}
+message AbortEvent         {}
+message QueueUpdateEvent   {}
+message CompactEndEvent    {}
+
+message TextDeltaEvent     { string content = 1; }
+message ThinkingDeltaEvent { string content = 1; }
+
+message ToolCallEvent {
+  string id        = 1;
+  string name      = 2;
+  string args_json = 3;
+  int32  position  = 4;
+}
+
+message ToolDeltaEvent {
+  string content      = 1;
+  string tool_call_id = 2;
+}
+
+message ToolOutputEvent {
+  string tool_call_id = 1;
+  string tool_name    = 2;
+  string content      = 3;
+  bool   is_error     = 4;
+}
+
+message MessageEndEvent {
+  int32 prompt_tokens     = 1;
+  int32 completion_tokens = 2;
+  int32 total_tokens      = 3;
+}
+
+message ErrorEvent       { string message = 1; }
+message StateChangeEvent { string from = 1; string to = 2; }
+message TokensEvent      { int64 value = 1; }
+
+message HeartbeatEvent {
+  int64  timestamp = 1;
+  string lifecycle = 2;
+}
+
+message CompactStartEvent { string message = 1; }

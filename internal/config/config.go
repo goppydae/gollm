@@ -72,6 +72,9 @@ type Config struct {
 
 	// DryRun mode: tools don't perform destructive actions
 	DryRun bool `mapstructure:"dryRun"`
+
+	// GRPCAddr is the TCP address for the gRPC server (e.g. ":50051").
+	GRPCAddr string `mapstructure:"grpcAddr"`
 }
 
 // Load reads configuration from the global (~/.gollm/config.json) and project-local
@@ -172,6 +175,7 @@ func DefaultConfig() *Config {
 		Extensions:    []string{filepath.Join(home, ".gollm", "extensions")},
 		PythonPath:    "python3",
 		OllamaBaseURL: "http://localhost:11434",
+		GRPCAddr:      ":50051",
 	}
 }
 
@@ -190,4 +194,5 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("compaction.reserveTokens", 4096)
 	v.SetDefault("compaction.keepRecentTokens", 8192)
 	v.SetDefault("dryRun", false)
+	v.SetDefault("grpcAddr", ":50051")
 }

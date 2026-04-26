@@ -131,14 +131,14 @@ func Tidy() error {
 }
 
 // Generate runs protoc to generate Go gRPC stubs for extensions.
+// Generate runs buf generate for all protobuf stubs.
+// - buf.gen.yaml          → internal/gen/gollm/v1/ (agent service)
+// - buf.gen.extensions.yaml → extensions/gen/      (plugin extension service)
 func Generate() error {
-	return run("protoc",
-		"--go_out=.",
-		"--go_opt=paths=source_relative",
-		"--go-grpc_out=.",
-		"--go-grpc_opt=paths=source_relative",
-		"extensions/proto/extension.proto",
-	)
+	if err := run("buf", "generate", "proto", "--template", "buf.gen.yaml"); err != nil {
+		return err
+	}
+	return run("buf", "generate", "extensions/proto", "--template", "buf.gen.extensions.yaml")
 }
 
 // All runs build, test, vet, and lint.

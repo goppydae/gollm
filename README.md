@@ -13,7 +13,7 @@
 - **Local-First** — Built from the ground up to favor local inference for privacy, speed, and cost-efficiency.
 - **Aggressively Extensible** — Every tool, provider, and behavior is a plugin interface. Supports gRPC extensions, markdown skills, and reusable prompt templates.
 - **Session Persistence** — Intelligent JSONL-backed session management with project-aware storage, branching, forking, and tree visualization.
-- **Flexible Modes** — TUI mode, one-shot JSON mode, or a headless RPC server.
+- **Flexible Modes** — TUI mode, one-shot JSON mode, headless RPC server, or a multi-session gRPC service.
 - **Security & Safety** — Dry-run safety for destructive tools, automatic prompt injection mitigation, and a gRPC extension system for enforcing arbitrary policies.
 
 ---
@@ -125,6 +125,22 @@ glm --mode json "Summarize the last 10 git commits" --model anthropic/claude-opu
 ### 3. RPC Mode (`--mode rpc`)
 
 Headless JSONL server over stdin/stdout. Ideal for editor integrations and external tooling.
+
+### 4. gRPC Mode (`--mode grpc`)
+
+A persistent multi-session gRPC service. Each client-supplied `session_id` gets its own isolated agent; sessions are saved to disk after each turn and reloaded automatically on reconnect.
+
+```bash
+# Start on the default port (:50051)
+glm --mode grpc
+
+# Use a custom address
+glm --mode grpc --grpc-addr :9090
+```
+
+The server responds to SIGINT/SIGTERM with a graceful shutdown: in-flight turns are allowed to finish (30 s timeout), all sessions are flushed to disk, then the listener closes.
+
+Proto definition and generated Go stubs live in `proto/gollm/v1/` and `internal/gen/gollm/v1/`. Regenerate with `mage generate`.
 
 ---
 
@@ -293,7 +309,8 @@ glm --extension ./gollm-sandbox "Refactor main.go"
 --theme              UI theme (dark, light, cyberpunk, synthwave, …)
 --session            Resume a specific session by ID or path
 --continue / -c      Resume the most recent session
---mode               Mode: tui (default), json, rpc
+--mode               Mode: tui (default), json, rpc, grpc
+--grpc-addr          gRPC listen address (default :50051; --mode grpc only)
 --no-session         Disable session persistence
 --models             Comma-separated model list for Ctrl+P cycling
 --dry-run            Enable safety mode for dangerous tools
@@ -333,7 +350,7 @@ ag.Prompt(context.Background(), "List the Go files in this directory")
 `gollm` uses [Mage](https://magefile.org/) as its build system and [Nix](https://nixos.org/) for environment management.
 
 ```bash
-# Enter the Nix dev shell (includes Go, Mage, etc.)
+# Enter the Nix dev shell (includes Go, buf, Mage, etc.)
 nix develop
 
 # Build the glm binary (uses VERSION file for injection)
@@ -344,6 +361,9 @@ mage test
 
 # Run all checks (build, test, vet, lint)
 mage all
+
+# Regenerate protobuf stubs (buf, covers all targets)
+mage generate
 
 # Create cross-platform release artifacts (in dist/)
 mage release

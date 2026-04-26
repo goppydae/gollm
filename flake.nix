@@ -22,9 +22,7 @@
           bash-completion
           imgcat
           chafa
-          protobuf
-          protoc-gen-go
-          protoc-gen-go-grpc
+          buf
         ];
 
         shellHook = ''

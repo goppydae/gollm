@@ -57,6 +57,7 @@ const (
 	EventCompactEnd    EventType = "compact_end"
 	EventStateChange   EventType = "state_change"
 	EventTokens        EventType = "tokens"
+	EventHeartbeat     EventType = "heartbeat"
 )
 
 // summarySentinel is prepended to every generated summary so detection is reliable
@@ -430,6 +431,11 @@ func (a *Agent) Abort() {
 // IsRunning reports whether the agent is currently processing.
 func (a *Agent) IsRunning() bool {
 	return a.lifeState.Current() != StateIdle
+}
+
+// LifecycleState returns the current lifecycle state as a string.
+func (a *Agent) LifecycleState() string {
+	return string(a.lifeState.Current())
 }
 
 // Idle returns a channel that closes when the agent is idle.

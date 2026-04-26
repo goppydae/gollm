@@ -100,8 +100,8 @@ import (
     "google.golang.org/grpc"
 
     // Import the glm extension proto from your vendored copy or replace
-    // with the generated types from gollm/extensions/proto
-    proto "github.com/goppydae/gollm/extensions/proto"
+    // with the generated types from gollm/extensions/gen
+    proto "github.com/goppydae/gollm/extensions/gen"
 )
 
 // GitContextExtension injects the current git branch and recent commits
@@ -206,7 +206,7 @@ The `git-context` binary in `.gollm/extensions/` will be auto-discovered and loa
 
 Python extensions work the same way but are invoked with the Python interpreter. You'll need the `grpc` and `go-plugin` Python libraries.
 
-> **Note:** Python extension support requires `grpcio` and a compatible proto stub. The proto file is at `extensions/proto/extension.proto` in the glm repository.
+> **Note:** Python extension support requires `grpcio` and a compatible proto stub. The proto source is at `extensions/proto/extension.proto` in the glm repository.
 
 ### 1. Generate Python stubs
 

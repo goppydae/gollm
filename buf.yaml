@@ -1,0 +1,13 @@
+version: v2
+modules:
+  - path: proto
+  - path: extensions/proto
+    lint:
+      ignore:
+        - extensions/proto
+lint:
+  use:
+    - STANDARD
+breaking:
+  use:
+    - FILE

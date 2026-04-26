@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 
-	"github.com/goppydae/gollm/extensions/proto"
+	proto "github.com/goppydae/gollm/extensions/gen"
 	"github.com/goppydae/gollm/internal/agent"
 	"github.com/goppydae/gollm/internal/tools"
 )
