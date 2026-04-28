@@ -124,7 +124,7 @@ func rootCmd() *cobra.Command {
 				if ci := strings.LastIndexByte(model, ':'); ci > 0 {
 					possibleThinking := model[ci+1:]
 					switch possibleThinking {
-					case "off", "minimal", "low", "medium", "high", "xhigh":
+					case "none", "off", "minimal", "low", "medium", "high", "xhigh":
 						if thinking == "" {
 							thinking = possibleThinking
 						}
@@ -395,7 +395,7 @@ func rootCmd() *cobra.Command {
 	cmd.Flags().StringVar(&provider, "provider", "", "Provider (ollama|openai|anthropic|llamacpp)")
 	cmd.Flags().StringVar(&apiKey, "api-key", "", "API key (overrides env vars)")
 	cmd.Flags().StringVar(&models, "models", "", "Comma-separated model patterns for Ctrl+P cycling")
-	cmd.Flags().StringVar(&thinking, "thinking", "", "Thinking level: off, low, medium, high")
+	cmd.Flags().StringVar(&thinking, "thinking", "", "Thinking level: off, minimal, low, medium, high, xhigh")
 
 	// Session
 	cmd.Flags().BoolVarP(&continueSession, "continue", "c", false, "Continue the last session")
@@ -427,7 +427,7 @@ func rootCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&noPromptTpls, "no-prompt-templates", false, "Disable prompt template discovery")
 
 	// Context files
-	cmd.Flags().BoolVar(&noContextFiles, "no-context-files", false, "Disable AGENTS.md and CLAUDE.md discovery")
+	cmd.Flags().BoolVar(&noContextFiles, "no-context-files", false, "Disable AGENTS.md, CLAUDE.md, GEMINI.md, and .context.md discovery")
 
 	// Theme
 	cmd.Flags().StringVar(&themeName, "theme", "", "Set the UI theme by name (dark, light, cyberpunk, synthwave)")

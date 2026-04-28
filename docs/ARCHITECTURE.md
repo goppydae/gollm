@@ -1,4 +1,4 @@
-# glm — Architecture Overview
+# gollm — Architecture Overview
 
 This document describes the high-level architecture of `gollm`: how its components are organized, how data flows through the system, and how the key abstractions relate to each other.
 
@@ -8,26 +8,28 @@ This document describes the high-level architecture of `gollm`: how its componen
 
 ```
 gollm/
-│   ├── service/        # Central AgentService implementation + in-process client
-│   ├── gen/            # Generated Protobuf stubs (pb.AgentServiceClient/Server)
-│   ├── agent/          # Core agentic loop, event bus, state machine
-│   ├── llm/            # LLM provider adapters (Ollama, OpenAI, Anthropic, llama.cpp, Google)
-│   ├── tools/          # Built-in tool implementations + registry
-│   ├── session/        # JSONL-backed session persistence, branching, tree
-│   ├── modes/
-│   │   ├── interactive/ # Bubble Tea TUI (pb client)
-│   │   ├── print.go    # One-shot CLI JSONL mode (pb client)
-│   │   └── grpc.go     # gRPC server mode (wraps Service)
-│   ├── config/         # Config loading (global + project layering)
-│   ├── themes/         # TUI colour themes
-│   ├── types/          # Shared value types (Message, Session, ThinkingLevel)
-│   ├── events/         # Generic publish-subscribe event bus
-│   ├── skills/         # Skill discovery (Markdown files → slash commands)
-│   ├── prompts/        # Prompt template discovery
-│   ├── contextfiles/   # Auto-discovered context file injection (AGENTS.md, etc.)
-│   └── grpcserver/     # Compatibility wrapper for Service
-└── proto/              # Protobuf definitions (gollm/v1/agent.proto)
-└── extensions/         # gRPC extension loader + proto definitions
+│   ├── internal/
+│   │   ├── service/        # Central AgentService implementation + in-process client
+│   │   ├── gen/            # Generated Protobuf stubs (pb.AgentServiceClient/Server)
+│   │   ├── agent/          # Core agentic loop, event bus, state machine
+│   │   ├── llm/            # LLM provider adapters (Ollama, OpenAI, Anthropic, llama.cpp, Google)
+│   │   ├── tools/          # Built-in tool implementations + registry
+│   │   ├── session/        # JSONL-backed session persistence, branching, tree
+│   │   ├── modes/
+│   │   │   ├── interactive/ # Bubble Tea TUI (pb client)
+│   │   │   ├── print.go    # One-shot CLI JSONL mode (pb client)
+│   │   │   └── grpc.go     # gRPC server mode (wraps Service)
+│   │   ├── config/         # Config loading (global + project layering)
+│   │   ├── themes/         # TUI colour themes
+│   │   ├── types/          # Shared value types (Message, Session, ThinkingLevel)
+│   │   ├── events/         # Generic publish-subscribe event bus
+│   │   ├── skills/         # Skill discovery (Markdown files → slash commands)
+│   │   ├── prompts/        # Prompt template discovery
+│   │   └── contextfiles/   # Auto-discovered context file injection (AGENTS.md, etc.)
+│   ├── cmd/                # Entry points (glm)
+│   ├── proto/              # Protobuf definitions (gollm/v1/agent.proto)
+│   ├── extensions/         # gRPC extension loader + proto definitions
+│   └── sdk/                # Public Go SDK
 ```
 
 ---
@@ -158,7 +160,7 @@ Two queues support non-blocking interaction while the agent is running:
 
 ```go
 type Provider interface {
-    Stream(ctx context.Context, req Request) (Stream, error)
+    Stream(ctx context.Context, req *CompletionRequest) (<-chan *Event, error)
     Info() ProviderInfo
 }
 ```
@@ -185,8 +187,9 @@ Tools implement a simple interface:
 type Tool interface {
     Name() string
     Description() string
-    InputSchema() json.RawMessage
-    Execute(ctx context.Context, args json.RawMessage, call *ToolCall) (ToolResult, error)
+    Schema() json.RawMessage
+    Execute(ctx context.Context, args json.RawMessage, update ToolUpdate) (*ToolResult, error)
+    IsReadOnly() bool
 }
 ```
 
@@ -198,7 +201,6 @@ A `ToolRegistry` holds all registered tools. During a turn, when the LLM emits a
 
 The tool system enforces several safety layers:
 
-- **Recursion Depth (`MaxSteps`)**: The `runTurn` loop tracks steps and aborts with an error if the LLM exceeds the configured `MaxSteps`. This prevents "hallucination loops" or infinite tool chains.
 - **Dry-Run Mode**: When `DryRun` is enabled, any tool that is not marked as read-only will bypass execution and return a descriptive preview of what it *would* have done.
 - **Input Sanitization**: Prompt template expansion automatically wraps user inputs in `<untrusted_input>` tags to prevent prompt breakout and injection into the base instructions.
 
@@ -426,7 +428,7 @@ The project version is maintained in a [VERSION](../VERSION) file in the reposit
 The `Magefile.go` defines several targets:
 - `Build`: Compiles the `glm` binary for the current platform with version injection.
 - `Test`: Runs all unit tests with optional coverage support.
-- `All`: Runs build, test, vet, lint, and vulnerability scan (`govulncheck`).
+- `All`: Runs generate, build, test, vet, lint, and vulnerability scan (`govulncheck`).
 - `Release`: Cross-compiles `glm` for Linux, macOS, and Windows (AMD64/ARM64), disables CGO for static portability, and packages artifacts into compressed archives in `dist/`.
 - `Generate`: Runs `buf` to regenerate protobuf stubs in `internal/gen/gollm/v1/` and `extensions/gen/`.
 

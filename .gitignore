@@ -4,4 +4,5 @@ bin/
 dist/
 internal/gen/
 extensions/gen/
+*_coverage.out
 coverage.out

@@ -187,7 +187,7 @@ Store reusable prompts in `.gollm/prompts/` or `~/.gollm/prompts/`. Expand into 
 
 ### Context Files
 
-`gollm` auto-discovers `AGENTS.md`, `CLAUDE.md`, and `.gollm/context.md` in your project root and injects them into the system prompt.
+`gollm` auto-discovers `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and `.context.md` in your project root or parent directories and injects them into the system prompt. Outermost files take precedence.
 
 ### gRPC Extensions
 
@@ -337,7 +337,7 @@ Model / Provider
   --model / -m         Model to use (e.g. llama3, gpt-4o, anthropic/claude-sonnet-4-6)
   --provider           Provider: ollama, openai, anthropic, llamacpp, google
   --api-key            API key override (env vars take priority otherwise)
-  --thinking           Thinking level: none, low, medium, high
+  --thinking           Thinking level: off, minimal, low, medium, high, xhigh
   --models             Comma-separated model list for Ctrl+P cycling
 
 Session
@@ -345,12 +345,13 @@ Session
   --resume / -r        Select a session to resume (fuzzy search or ID)
   --session            Use a specific session file path
   --session-dir        Directory for session storage and lookup
-  --fork               Fork a session file or partial UUID into a new session
+  --branch             Branch from a session file or partial UUID into a new child session
+  --fork               Deprecated: use --branch
   --no-session         Ephemeral mode: don't save the session
 
 System Prompt
   --system-prompt      Override the system prompt
-  --append-system-prompt   Append text or @file to the system prompt (repeatable)
+  --append-system-prompt   Append text or file to the system prompt (repeatable)
 
 Tools
   --tools              Comma-separated list of tools to enable (read,bash,edit,write,grep,find,ls)
@@ -366,7 +367,7 @@ Extensions / Skills / Prompts
   --no-prompt-templates  Disable prompt template auto-discovery
 
 Context Files
-  --no-context-files   Disable AGENTS.md / CLAUDE.md auto-discovery
+  --no-context-files   Disable AGENTS.md / CLAUDE.md / GEMINI.md / .context.md auto-discovery
 
 Theme
   --theme              UI theme name: dark, light, cyberpunk, synthwave, …
