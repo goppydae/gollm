@@ -2,6 +2,7 @@ package interactive
 
 import (
 	"context"
+	"log"
 	"path/filepath"
 	"strings"
 
@@ -72,6 +73,14 @@ func Run(client pb.AgentServiceClient, sessionID string, cfg *config.Config, the
 	}
 	m.models = cfg.Models
 	m.modelIndex = 0
+
+	// Warn about models that look syntactically wrong before the TUI obscures
+	// log output. Full reachability can only be checked on first Ctrl+P switch.
+	for _, model := range cfg.Models {
+		if !strings.Contains(model, "/") {
+			log.Printf("model cycling: %q does not look like a valid provider/model string; Ctrl+P may fail when it is selected", model)
+		}
+	}
 
 	p := tea.NewProgram(m)
 	_, err := p.Run()

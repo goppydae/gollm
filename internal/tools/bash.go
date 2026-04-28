@@ -14,8 +14,10 @@ import (
 // Bash is a tool for executing shell commands.
 //
 // Security note: commands are executed as-is via `bash -c`. The subprocess
-// inherits the process environment (including API keys). Configure DenyPatterns
-// to block known-dangerous patterns; leave nil/empty for no restrictions.
+// runs in an isolated environment containing only an explicit allowlist of
+// variables (PATH, HOME, LANG, TERM, TMPDIR, USER, SHELL). Extra variables
+// can be injected via EnvAllowlist. DenyPatterns blocks commands by substring
+// match before execution.
 type Bash struct {
 	// Cwd is the working directory for commands.
 	Cwd string
@@ -25,6 +27,9 @@ type Bash struct {
 	// command, will cause execution to be rejected. Checked case-insensitively.
 	// Example: []string{"rm -rf /", "dd if=", "> /dev/sd"}
 	DenyPatterns []string
+	// EnvAllowlist is an optional list of KEY=VALUE pairs to inject into the
+	// subprocess environment in addition to the default allowlist.
+	EnvAllowlist []string
 }
 
 func (Bash) Name() string { return "bash" }
@@ -100,13 +105,9 @@ func (t Bash) Execute(ctx context.Context, args json.RawMessage, update ToolUpda
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
 	defer cancel()
 
-	// Run command.
-	// NOTE: cmd.Env is intentionally left unset so the subprocess inherits the
-	// parent environment (user shell, PATH, etc.). This also exposes any API keys
-	// or credentials present in the environment to the executed command. Callers
-	// that need isolation should set DenyPatterns or use a sandboxing extension.
 	cmd := exec.CommandContext(ctx, "bash", "-c", params.Command)
 	cmd.Dir = cwd
+	cmd.Env = buildSubprocessEnv(t.EnvAllowlist)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -153,6 +154,18 @@ func (t Bash) Execute(ctx context.Context, args json.RawMessage, update ToolUpda
 
 func (Bash) IsReadOnly() bool { return false }
 
-
-
-
+// buildSubprocessEnv returns an environment slice containing only the safe
+// default keys plus any extras provided by the caller. This prevents
+// credential leakage (e.g. API keys in the parent process env) to
+// LLM-controlled subprocesses.
+func buildSubprocessEnv(extra []string) []string {
+	allowed := []string{"PATH", "HOME", "LANG", "TERM", "TMPDIR", "USER", "SHELL"}
+	env := make([]string, 0, len(allowed)+len(extra))
+	for _, key := range allowed {
+		if val, ok := os.LookupEnv(key); ok {
+			env = append(env, key+"="+val)
+		}
+	}
+	env = append(env, extra...)
+	return env
+}

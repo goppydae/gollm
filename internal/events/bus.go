@@ -3,6 +3,7 @@ package events
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"github.com/google/uuid"
 )
@@ -27,10 +28,26 @@ type EventBus struct {
 }
 
 type subscriber struct {
-	id     string
-	ch     chan any
-	closed bool
+	id      string
+	ch      chan any
+	closed  bool
+	dropped atomic.Int64
 }
+
+// Subscription is returned by Subscribe and provides a way to check whether
+// events were dropped and to unsubscribe.
+type Subscription struct {
+	sub         *subscriber
+	unsubscribe func()
+}
+
+// Unsubscribe removes this subscription from the bus.
+func (s *Subscription) Unsubscribe() { s.unsubscribe() }
+
+// DroppedCount returns the number of events dropped for this subscriber since
+// it was created. A non-zero value means the subscriber's buffer was full and
+// some events were silently discarded.
+func (s *Subscription) DroppedCount() int64 { return s.sub.dropped.Load() }
 
 // NewEventBus creates a new event bus.
 func NewEventBus() *EventBus {
@@ -41,7 +58,8 @@ func NewEventBus() *EventBus {
 
 // Publish sends an event to all subscribers. The send is non-blocking: if a
 // subscriber's buffer is full the event is dropped for that subscriber rather
-// than stalling the caller.
+// than stalling the caller. The first drop per subscriber is noted by
+// incrementing its dropped counter.
 func (b *EventBus) Publish(event any) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -55,13 +73,14 @@ func (b *EventBus) Publish(event any) {
 		case sub.ch <- event:
 		default:
 			// subscriber is too slow — drop rather than block the agent loop
+			sub.dropped.Add(1)
 		}
 	}
 }
 
-// Subscribe registers a handler and returns an unsubscribe function.
-// Each subscriber gets its own goroutine for async execution.
-func (b *EventBus) Subscribe(fn Handler) func() {
+// Subscribe registers a handler and returns a Subscription. Each subscriber
+// gets its own goroutine for async execution.
+func (b *EventBus) Subscribe(fn Handler) *Subscription {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -78,7 +97,7 @@ func (b *EventBus) Subscribe(fn Handler) func() {
 		}
 	}()
 
-	return func() {
+	unsub := func() {
 		b.mu.Lock()
 		defer b.mu.Unlock()
 		if s, ok := b.subscribers[id]; ok && !s.closed {
@@ -87,6 +106,7 @@ func (b *EventBus) Subscribe(fn Handler) func() {
 			delete(b.subscribers, id)
 		}
 	}
+	return &Subscription{sub: sub, unsubscribe: unsub}
 }
 
 // Close shuts down the event bus and all subscribers.

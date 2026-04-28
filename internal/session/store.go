@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -232,7 +233,7 @@ func (s *store) readPath(path string) ([]record, error) {
 		}
 		var r record
 		if err := json.Unmarshal(line, &r); err != nil {
-			// Try to handle legacy records if possible, or skip
+			log.Printf("session store: malformed record in %s at line %d: %v — skipping", path, len(records)+1, err)
 			continue
 		}
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/rpc"
+	"time"
 
 	"github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
@@ -14,6 +15,8 @@ import (
 	"github.com/goppydae/gollm/internal/agent"
 	"github.com/goppydae/gollm/internal/tools"
 )
+
+const extensionRPCTimeout = 5 * time.Second
 
 // HandshakeConfig is the agreed upon handshake for gollm extensions.
 var HandshakeConfig = plugin.HandshakeConfig{
@@ -53,14 +56,29 @@ func (p *ExtensionPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBro
 
 // GRPCClient is an implementation of agent.Extension that talks over RPC.
 // It runs on the host side when a plugin binary is loaded.
+//
+// If Name() or Tools() fail, the client is marked degraded and all subsequent
+// tool executions return an error rather than silently doing nothing.
 type GRPCClient struct {
-	client proto.ExtensionClient
+	client      proto.ExtensionClient
+	degraded    bool
+	degradedErr error
+}
+
+// Degraded reports whether the extension failed to initialise. Callers can
+// surface this to the user rather than letting the failure be silent.
+func (m *GRPCClient) Degraded() (bool, error) {
+	return m.degraded, m.degradedErr
 }
 
 func (m *GRPCClient) Name() string {
-	resp, err := m.client.Name(context.Background(), &proto.Empty{})
+	ctx, cancel := context.WithTimeout(context.Background(), extensionRPCTimeout)
+	defer cancel()
+	resp, err := m.client.Name(ctx, &proto.Empty{})
 	if err != nil {
-		log.Printf("extension Name() RPC error: %v", err)
+		log.Printf("extension Name() RPC error (marking degraded): %v", err)
+		m.degraded = true
+		m.degradedErr = fmt.Errorf("Name() RPC failed: %w", err)
 		return ""
 	}
 	return resp.Name
@@ -69,9 +87,13 @@ func (m *GRPCClient) Name() string {
 // Tools queries the extension process for its tool definitions and returns
 // RemoteTool wrappers that execute each tool over the ExecuteTool RPC.
 func (m *GRPCClient) Tools() []tools.Tool {
-	resp, err := m.client.Tools(context.Background(), &proto.Empty{})
+	ctx, cancel := context.WithTimeout(context.Background(), extensionRPCTimeout)
+	defer cancel()
+	resp, err := m.client.Tools(ctx, &proto.Empty{})
 	if err != nil {
-		log.Printf("extension Tools() RPC error: %v", err)
+		log.Printf("extension Tools() RPC error (marking degraded): %v", err)
+		m.degraded = true
+		m.degradedErr = fmt.Errorf("Tools() RPC failed: %w", err)
 		return nil
 	}
 	result := make([]tools.Tool, 0, len(resp.Tools))
@@ -82,6 +104,7 @@ func (m *GRPCClient) Tools() []tools.Tool {
 			description: def.Description,
 			schema:      json.RawMessage(def.ParametersJsonSchema),
 			readOnly:    def.IsReadOnly,
+			extension:   m,
 		})
 	}
 	return result
@@ -188,6 +211,7 @@ func (m *GRPCClient) ModifySystemPrompt(prompt string) string {
 // RemoteTool is a tools.Tool that executes over the extension's ExecuteTool gRPC.
 type RemoteTool struct {
 	client      proto.ExtensionClient
+	extension   *GRPCClient // back-ref to check degraded state
 	name        string
 	description string
 	schema      json.RawMessage
@@ -200,6 +224,12 @@ func (t *RemoteTool) Schema() json.RawMessage { return t.schema }
 func (t *RemoteTool) IsReadOnly() bool        { return t.readOnly }
 
 func (t *RemoteTool) Execute(ctx context.Context, args json.RawMessage, update tools.ToolUpdate) (*tools.ToolResult, error) {
+	if t.extension != nil && t.extension.degraded {
+		return &tools.ToolResult{
+			Content: fmt.Sprintf("extension is degraded: %v", t.extension.degradedErr),
+			IsError: true,
+		}, nil
+	}
 	resp, err := t.client.ExecuteTool(ctx, &proto.ExecuteToolRequest{
 		Name:          t.name,
 		ArgumentsJson: string(args),

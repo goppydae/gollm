@@ -4,7 +4,6 @@ package tools
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 )
 
 // Tool is the universal tool interface — anything the agent can do.
@@ -72,16 +71,6 @@ func (r *ToolRegistry) Has(name string) bool {
 	return ok
 }
 
-// MustGet retrieves a tool by name, panicking if not found.
-// Only call this when the tool's existence has already been guaranteed
-// (e.g. during application init). Use Get for runtime lookups.
-func (r *ToolRegistry) MustGet(name string) Tool {
-	t, ok := r.Get(name)
-	if !ok {
-		panic(fmt.Sprintf("tool %q not found in registry", name))
-	}
-	return t
-}
 
 // NormalizePath strips a leading '@' from a path if present.
 func NormalizePath(path string) string {

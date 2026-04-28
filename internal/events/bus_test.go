@@ -65,7 +65,7 @@ func TestEventBus_Unsubscribe(t *testing.T) {
 		wg.Done()
 	}
 
-	unsub := bus.Subscribe(handler)
+	sub := bus.Subscribe(handler)
 	bus.Publish("event 1")
 
 	// Wait for delivery with timeout
@@ -81,7 +81,7 @@ func TestEventBus_Unsubscribe(t *testing.T) {
 		t.Fatal("timed out waiting for first event delivery")
 	}
 
-	unsub()
+	sub.Unsubscribe()
 	bus.Publish("event 2")
 
 	// No sleep needed: unsub() is synchronous with the subscriber map, 
@@ -94,5 +94,28 @@ func TestEventBus_Unsubscribe(t *testing.T) {
 	if got != 1 {
 		t.Errorf("expected 1 event after unsubscribe, got %d", got)
 	}
+}
+
+func TestEventBus_DroppedCounter(t *testing.T) {
+	bus := NewEventBus()
+	defer bus.Close()
+
+	// Subscribe with a handler that never reads so the buffer fills up.
+	blockCh := make(chan struct{})
+	sub := bus.Subscribe(func(any) {
+		<-blockCh // block the handler so the channel buffer fills
+	})
+
+	// Publish more events than the buffer can hold.
+	for i := 0; i < subscriberChanSize+10; i++ {
+		bus.Publish(i)
+	}
+
+	if sub.DroppedCount() == 0 {
+		t.Error("expected at least one dropped event, got zero")
+	}
+
+	close(blockCh) // unblock handler goroutine
+	sub.Unsubscribe()
 }
 

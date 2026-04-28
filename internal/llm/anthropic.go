@@ -35,6 +35,7 @@ type AnthropicProvider struct {
 	client     *http.Client
 	apiKey     string
 	apiVersion string
+	baseURL    string // overridable for tests; defaults to anthropicBaseURL
 	model      string
 	maxTokens  int
 	temp       float64
@@ -61,6 +62,14 @@ func (p *AnthropicProvider) WithAPIVersion(v string) *AnthropicProvider {
 	if v != "" {
 		cp.apiVersion = v
 	}
+	return &cp
+}
+
+// WithBaseURL returns a copy of the provider using the given base URL.
+// Intended for testing against a local mock server.
+func (p *AnthropicProvider) WithBaseURL(u string) *AnthropicProvider {
+	cp := *p
+	cp.baseURL = strings.TrimRight(u, "/")
 	return &cp
 }
 
@@ -138,7 +147,11 @@ func (p *AnthropicProvider) stream(ctx context.Context, req *CompletionRequest, 
 		return fmt.Errorf("marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, anthropicBaseURL+"/v1/messages", bytes.NewReader(data))
+	base := p.baseURL
+	if base == "" {
+		base = anthropicBaseURL
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/v1/messages", bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
@@ -337,7 +350,11 @@ func convertMessagesForAnthropic(messages []types.Message) []map[string]any {
 }
 
 func (p *AnthropicProvider) ListModels() ([]string, error) {
-	url := anthropicBaseURL + "/v1/models"
+	base := p.baseURL
+	if base == "" {
+		base = anthropicBaseURL
+	}
+	url := base + "/v1/models"
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err

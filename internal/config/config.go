@@ -117,6 +117,18 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
+	// Env-var overrides take precedence over config file values.
+	// Preferred credential mechanism — avoids storing keys in dotfile repos.
+	if v := os.Getenv("GOLLM_ANTHROPIC_API_KEY"); v != "" {
+		cfg.AnthropicAPIKey = v
+	}
+	if v := os.Getenv("GOLLM_OPENAI_API_KEY"); v != "" {
+		cfg.OpenAIAPIKey = v
+	}
+	if v := os.Getenv("GOLLM_GOOGLE_API_KEY"); v != "" {
+		cfg.GoogleAPIKey = v
+	}
+
 	cfg.SessionDir = expandPath(cfg.SessionDir)
 	for i, p := range cfg.Extensions {
 		cfg.Extensions[i] = expandPath(p)

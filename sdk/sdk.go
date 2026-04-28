@@ -109,7 +109,7 @@ type Config struct {
 	Tools []Tool
 
 	// Extensions registers active extensions (gRPC plugins or Skills).
-	Extensions []agent.Extension
+	Extensions []Extension
 }
 
 // NewAgent creates a new agent from the given configuration.

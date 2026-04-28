@@ -205,12 +205,15 @@ message GetStateResponse {
   int32  parent_message_index = 13;  // -1 if N/A
 }
 
+// ProviderInfo mirrors llm.ProviderInfo in internal/llm/provider.go.
+// Keep the two in sync: add fields here when adding them to the Go struct.
 message ProviderInfo {
-  string name           = 1;
-  string model          = 2;
-  int32  context_window = 3;
+  string name            = 1;
+  string model           = 2;
+  int32  context_window  = 3;
   bool   supports_images = 4;
   bool   supports_tools  = 5;
+  int32  max_tokens      = 6;
 }
 
 message GetMessagesResponse { repeated ConversationMessage messages = 1; }

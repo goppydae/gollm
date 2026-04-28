@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"html"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -629,6 +630,7 @@ func expandModelPatterns(cfg *config.Config) []string {
 			continue
 		}
 
+		matched := 0
 		for _, m := range models {
 			if matchGlob(pattern, m) {
 				full := provName + "/" + m
@@ -636,7 +638,11 @@ func expandModelPatterns(cfg *config.Config) []string {
 					expanded = append(expanded, full)
 					seen[full] = true
 				}
+				matched++
 			}
+		}
+		if matched == 0 {
+			log.Printf("model pattern %q matched no known models (supported glob syntax: * and ? only, ** is not supported)", pat)
 		}
 	}
 
@@ -644,9 +650,14 @@ func expandModelPatterns(cfg *config.Config) []string {
 }
 
 func matchGlob(pattern, name string) bool {
-	// Simple glob matching: * matches anything
-	// We'll use filepath.Match which handles * and ?
-	matched, _ := filepath.Match(pattern, name)
+	// filepath.Match supports * and ? but NOT ** (directory traversal).
+	// Patterns like "claude-**" or "gpt-4*-turbo" silently produce no matches;
+	// use strings.Contains or exact names for those cases.
+	matched, err := filepath.Match(pattern, name)
+	if err != nil {
+		// Only ErrBadPattern can be returned; log once so the user knows.
+		log.Printf("model pattern %q is invalid: %v (supported syntax: * and ? only)", pattern, err)
+	}
 	return matched
 }
 

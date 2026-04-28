@@ -476,6 +476,7 @@ func (s *Service) GetState(_ context.Context, req *pb.GetStateRequest) (*pb.GetS
 			ContextWindow:  int32(info.ContextWindow),
 			SupportsImages: info.HasImages,
 			SupportsTools:  info.HasToolCall,
+			MaxTokens:      int32(info.MaxTokens),
 		},
 		ParentMessageIndex: -1,
 	}
@@ -670,7 +671,14 @@ func (s *Service) RebaseSession(ctx context.Context, req *pb.RebaseSessionReques
 		}
 	}
 
-	// TODO: implement squash logic if req.Squash is true
+	if req.Squash {
+		squashedID, err := s.squashAndSave(ctx, source, recordIDs)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "squash session: %v", err)
+		}
+		s.getOrCreate(squashedID)
+		return &pb.NewSessionResponse{SessionId: squashedID}, nil
+	}
 
 	rebased, err := s.manager.Rebase(source, recordIDs)
 	if err != nil {
@@ -813,8 +821,63 @@ func sessionTreeToProto(nodes []*session.TreeNode) []*pb.SessionNode {
 
 // ── LLM Synthesis Helpers ─────────────────────────────────────────────────────
 
-// squashMessages condenses the selected messages from source into a single
-// user+assistant pair using the LLM provider.
+// squashAndSave condenses the selected messages from source into a single
+// user+assistant pair via the LLM, then saves the result as a new session.
+func (s *Service) squashAndSave(ctx context.Context, source *session.Session, recordIDs []string) (string, error) {
+	byID := make(map[string]types.Message, len(source.Messages))
+	for _, m := range source.Messages {
+		if m.ID != "" {
+			byID[m.ID] = m
+		}
+	}
+	selected := make([]types.Message, 0, len(recordIDs))
+	for _, id := range recordIDs {
+		if m, ok := byID[id]; ok {
+			selected = append(selected, m)
+		}
+	}
+
+	prompt := buildSquashPrompt(selected)
+	condensed, err := s.llmOneShotText(ctx, source.Model, source.Provider, prompt)
+	if err != nil {
+		return "", err
+	}
+
+	now := time.Now()
+	newID := uuid.New().String()
+	squashed := &session.Session{
+		ID:           newID,
+		Model:        source.Model,
+		Provider:     source.Provider,
+		Thinking:     source.Thinking,
+		SystemPrompt: source.SystemPrompt,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+		DryRun:              source.DryRun,
+		CompactionEnabled:   source.CompactionEnabled,
+		CompactionReserve:   source.CompactionReserve,
+		CompactionKeep:      source.CompactionKeep,
+		Messages: []types.Message{
+			{Role: "user", Content: fmt.Sprintf("Summary of %d messages from session %s:", len(selected), shortID(source.ID))},
+			{Role: "assistant", Content: condensed},
+		},
+	}
+	if err := s.manager.Save(squashed); err != nil {
+		return "", err
+	}
+	return newID, nil
+}
+
+func buildSquashPrompt(msgs []types.Message) string {
+	const maxMsgs = 50
+	var sb strings.Builder
+	sb.WriteString("Condense the following conversation into a single concise summary that preserves all key decisions, context, and outcomes. The summary will replace the original messages as the starting context for a new session.\n\n")
+	for _, m := range last(msgs, maxMsgs) {
+		fmt.Fprintf(&sb, "**%s:** %s\n\n", m.Role, truncate(m.Content, 500))
+	}
+	sb.WriteString("Provide a clear, structured summary capturing the essential context.")
+	return sb.String()
+}
 
 // buildMergeSynthesis calls the LLM to produce a synthesis of two session branches.
 func (s *Service) buildMergeSynthesis(ctx context.Context, a, b *session.Session) (string, error) {

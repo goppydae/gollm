@@ -56,11 +56,14 @@ var ModelContextWindows = map[string]int{
 }
 
 // GetContextWindow returns the context window for a model name, or 0 if unknown.
+// Uses longest-prefix match so that e.g. "gpt-4-turbo" resolves to 128000 not 8192.
 func GetContextWindow(model string) int {
+	bestLen, bestVal := 0, 0
 	for k, v := range ModelContextWindows {
-		if strings.HasPrefix(model, k) {
-			return v
+		if strings.HasPrefix(model, k) && len(k) > bestLen {
+			bestLen = len(k)
+			bestVal = v
 		}
 	}
-	return 0
+	return bestVal
 }

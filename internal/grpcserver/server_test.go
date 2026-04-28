@@ -319,6 +319,80 @@ func TestMultipleSessions_Isolated(t *testing.T) {
 	}
 }
 
+func TestRebaseSession_NotFound(t *testing.T) {
+	dir := t.TempDir()
+	mgr := session.NewManager(dir)
+	client := newTestClientWithManager(t, textProvider("hi"), mgr)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := client.RebaseSession(ctx, &pb.RebaseSessionRequest{
+		SessionId:  "does-not-exist",
+		MsgIndices: []int32{0},
+	})
+	if err == nil {
+		t.Fatal("expected NotFound error, got nil")
+	}
+	// Should be a gRPC NotFound status.
+	if !isGRPCNotFound(err) {
+		t.Errorf("expected NotFound status code, got: %v", err)
+	}
+}
+
+func TestRebaseSession_Squash(t *testing.T) {
+	dir := t.TempDir()
+	mgr := session.NewManager(dir)
+	prov := textProvider("summary of your session")
+	client := newTestClientWithManager(t, prov, mgr)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Run a prompt to create session content.
+	stream, err := client.Prompt(ctx, &pb.PromptRequest{SessionId: "squash-me", Message: "hello"})
+	if err != nil {
+		t.Fatalf("Prompt: %v", err)
+	}
+	collectEvents(t, stream)
+
+	// Rebase with squash=true — should succeed and return a new session ID.
+	resp, err := client.RebaseSession(ctx, &pb.RebaseSessionRequest{
+		SessionId:  "squash-me",
+		MsgIndices: []int32{0, 1},
+		Squash:     true,
+	})
+	if err != nil {
+		t.Fatalf("RebaseSession(squash=true): %v", err)
+	}
+	if resp.SessionId == "" {
+		t.Error("expected non-empty session ID for squashed session")
+	}
+	if resp.SessionId == "squash-me" {
+		t.Error("squashed session should have a new ID, not the original")
+	}
+}
+
+func isGRPCNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	return contains(err.Error(), "NotFound") || contains(err.Error(), "not found")
+}
+
+func contains(s, sub string) bool {
+	return len(s) >= len(sub) && (s == sub || len(s) > 0 && containsStr(s, sub))
+}
+
+func containsStr(s, sub string) bool {
+	for i := 0; i <= len(s)-len(sub); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
+}
+
 func TestSessionPersistence_SaveAndReload(t *testing.T) {
 	dir := t.TempDir()
 	mgr := session.NewManager(dir)

@@ -37,6 +37,15 @@ jobs:
       - name: Coverage Summary
         run: nix develop -c go tool cover -func=coverage.out
 
+      - name: Enforce Coverage Threshold
+        run: |
+          COVERAGE=$(nix develop -c go tool cover -func=coverage.out | grep "^total" | awk '{print $3}' | tr -d '%')
+          echo "Total coverage: ${COVERAGE}%"
+          if [ "$(echo "$COVERAGE < 40" | bc -l)" = "1" ]; then
+            echo "Coverage ${COVERAGE}% is below the 40% threshold."
+            exit 1
+          fi
+
       - name: Upload Binary
         uses: actions/upload-artifact@v4
         with:

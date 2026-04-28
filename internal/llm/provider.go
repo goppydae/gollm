@@ -51,6 +51,8 @@ func DefaultStreamOptions() StreamOptions {
 }
 
 // ProviderInfo describes a provider's capabilities.
+// Must stay in sync with ProviderInfo in proto/gollm/v1/agent.proto;
+// add fields to both when extending.
 type ProviderInfo struct {
 	Name          string
 	Model         string

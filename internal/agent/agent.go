@@ -381,11 +381,12 @@ func (a *Agent) SetExtensions(exts []Extension) {
 
 // Subscribe registers an event listener and returns an unsubscribe function.
 func (a *Agent) Subscribe(fn func(Event)) func() {
-	return a.events.Subscribe(func(e any) {
+	sub := a.events.Subscribe(func(e any) {
 		if ev, ok := e.(Event); ok {
 			fn(ev)
 		}
 	})
+	return sub.Unsubscribe
 }
 
 // Prompt sends a user message and runs the agent loop until idle.
@@ -610,17 +611,23 @@ func (a *Agent) Compact(ctx context.Context, keepRecentTokens int) {
 	}
 	// Fix #10: carry forward file activity recorded in the previous summary so
 	// files touched before the last compaction boundary are not silently lost.
+	// Use maps for O(1) deduplication (Fix 8b).
 	if previousSummary != "" {
 		pr, pm := parseFileActivityFromSummary(previousSummary)
-		readFiles = append(readFiles, pr...)
-		modFiles = append(modFiles, pm...)
+		readFiles = dedupeStrings(readFiles, pr)
+		modFiles = dedupeStrings(modFiles, pm)
 	}
 
 	// 6. Generate Summaries via LLM
+	// Cap compaction at 60 s so a slow provider cannot hold the agent in a
+	// non-abortable state for an unbounded duration (Fix 8a).
+	compactCtx, compactCancel := context.WithTimeout(ctx, 60*time.Second)
+	defer compactCancel()
+
 	summaryChan := make(chan string, 1)
 	errChan := make(chan error, 1)
 	go func() {
-		s, err := a.generateSummary(ctx, messagesToSummarize, previousSummary)
+		s, err := a.generateSummary(compactCtx, messagesToSummarize, previousSummary)
 		if err != nil {
 			errChan <- err
 			return
@@ -644,7 +651,7 @@ func (a *Agent) Compact(ctx context.Context, keepRecentTokens int) {
 		summaryText = s
 	case err := <-errChan:
 		summaryText = "## Session Progress Summary\n(Summarization failed: " + err.Error() + ")"
-	case <-ctx.Done():
+	case <-compactCtx.Done():
 		// Re-acquire the lock so the deferred unlock is balanced, then bail.
 		a.mu.Lock()
 		return
@@ -888,6 +895,21 @@ func (a *Agent) formatFileActivity(read, mod []string) string {
 // parseFileActivityFromSummary extracts the "### File Activity" section from a
 // previously generated summary so file tracking is preserved across compaction
 // cycles (fix #10).
+// dedupeStrings merges extra into base, skipping any path already in base.
+func dedupeStrings(base, extra []string) []string {
+	seen := make(map[string]struct{}, len(base))
+	for _, s := range base {
+		seen[s] = struct{}{}
+	}
+	for _, s := range extra {
+		if _, ok := seen[s]; !ok {
+			base = append(base, s)
+			seen[s] = struct{}{}
+		}
+	}
+	return base
+}
+
 func parseFileActivityFromSummary(summary string) (read []string, modified []string) {
 	for _, line := range strings.Split(summary, "\n") {
 		if after, ok := strings.CutPrefix(line, "- Read: "); ok {
@@ -1005,12 +1027,26 @@ func (a *Agent) estimateMessageTokens(m Message) int {
 	return EstimateMessageTokens(m)
 }
 
+// charTokenDivisor returns the chars-per-token divisor to use for a string.
+// CJK and other non-ASCII scripts average ~1 char per token, whereas ASCII
+// prose averages ~4. Using 1 for any non-ASCII content is conservative but
+// avoids hitting the provider's hard context limit for multilingual sessions.
+func charTokenDivisor(s string) int {
+	for _, r := range s {
+		if r > 127 {
+			return 1
+		}
+	}
+	return 4
+}
+
 func EstimateMessageTokens(m Message) int {
-	// Rough heuristic: 4 chars ≈ 1 token for ASCII; code and non-ASCII tokenise
-	// more densely. Apply a 20% overhead to err on the side of early compaction
-	// rather than hitting the context-window hard limit.
-	count := len(m.Content) / 4
-	count += len(m.Thinking) / 4
+	// Rough heuristic: ~4 ASCII chars ≈ 1 token; ~1 CJK/non-ASCII char ≈ 1 token.
+	// Code and operators tokenise more densely than prose, so results may be off
+	// by up to 2× for code-heavy content. The 20% overhead below compensates for
+	// moderate underestimates but not for a 4× underestimate from non-ASCII text.
+	count := len(m.Content) / charTokenDivisor(m.Content)
+	count += len(m.Thinking) / charTokenDivisor(m.Thinking)
 	for _, tc := range m.ToolCalls {
 		count += (len(tc.Name) + len(tc.Args)) / 4
 	}

@@ -115,7 +115,7 @@ func TestEventBus_UnsubscribeDuringPublish(t *testing.T) {
 	bus := NewEventBus()
 	defer bus.Close()
 
-	unsub := bus.Subscribe(func(any) {})
+	sub := bus.Subscribe(func(any) {})
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -130,7 +130,7 @@ func TestEventBus_UnsubscribeDuringPublish(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		time.Sleep(time.Millisecond)
-		unsub()
+		sub.Unsubscribe()
 	}()
 
 	wg.Wait()
