@@ -34,6 +34,7 @@
           default = pkgs.mkShell {
             packages = with pkgs; [
               go
+              git
               gopls
               golangci-lint
               mage
