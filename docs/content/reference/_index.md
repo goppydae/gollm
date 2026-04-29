@@ -3,7 +3,7 @@ title: API Reference
 weight: 20
 description: GoDoc-generated reference for gollm's public and contract packages
 cascade:
-  - _target:
+  - target:
       kind: page
     type: reference
 ---

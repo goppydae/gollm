@@ -10,11 +10,14 @@ description: gollm developer documentation
 > A Golem is designed to be a tireless servant to its creator. Brought to life through ritual, created entirely from inanimate matter. It performs physical labor or provides protection.
 
 <div style="text-align: center">
-
-[![CI](https://github.com/goppydae/gollm/actions/workflows/ci.yml/badge.svg?classes=inline)](https://github.com/goppydae/gollm/actions/workflows/ci.yml) [![Coverage](https://codecov.io/gh/goppydae/gollm/branch/main/graph/badge.svg?classes=inline)](https://codecov.io/gh/goppydae/gollm) [![Go Reference](https://pkg.go.dev/badge/github.com/goppydae/gollm.svg?classes=inline)](https://pkg.go.dev/github.com/goppydae/gollm) [![Go Report Card](https://goreportcard.com/badge/github.com/goppydae/gollm?classes=inline)](https://goreportcard.com/report/github.com/goppydae/gollm)
-
-[![Latest Release](https://img.shields.io/github/v/release/goppydae/gollm?classes=inline)](https://github.com/goppydae/gollm/releases/latest) [![Go Version](https://img.shields.io/badge/go-1.26.2+-blue?classes=inline)](https://go.dev/dl/) [![License](https://img.shields.io/github/license/goppydae/gollm?classes=inline)](https://github.com/goppydae/gollm/blob/main/LICENSE)
-
+<a href="https://github.com/goppydae/gollm/actions/workflows/ci.yml"><img src="https://github.com/goppydae/gollm/actions/workflows/ci.yml/badge.svg" alt="CI" style="display:inline;vertical-align:bottom;margin:0"></a>
+<a href="https://codecov.io/gh/goppydae/gollm"><img src="https://codecov.io/gh/goppydae/gollm/branch/main/graph/badge.svg" alt="Coverage" style="display:inline;vertical-align:bottom;margin:0"></a>
+<a href="https://pkg.go.dev/github.com/goppydae/gollm"><img src="https://pkg.go.dev/badge/github.com/goppydae/gollm.svg" alt="Go Reference" style="display:inline;vertical-align:bottom;margin:0"></a>
+<a href="https://goreportcard.com/report/github.com/goppydae/gollm"><img src="https://goreportcard.com/badge/github.com/goppydae/gollm" alt="Go Report Card" style="display:inline;vertical-align:bottom;margin:0"></a>
+<br>
+<a href="https://github.com/goppydae/gollm/releases/latest"><img src="https://img.shields.io/github/v/release/goppydae/gollm" alt="Latest Release" style="display:inline;vertical-align:bottom;margin:0"></a>
+<a href="https://go.dev/dl/"><img src="https://img.shields.io/badge/go-1.26.2+-blue" alt="Go Version" style="display:inline;vertical-align:bottom;margin:0"></a>
+<a href="https://github.com/goppydae/gollm/blob/main/LICENSE"><img src="https://img.shields.io/github/license/goppydae/gollm" alt="License" style="display:inline;vertical-align:bottom;margin:0"></a>
 </div>
 
 ---
