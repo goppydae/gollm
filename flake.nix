@@ -23,7 +23,9 @@
             inherit system;
             overlays = [
               (final: prev: {
-                gomarkdoc = prev.gomarkdoc.overrideAttrs (_: { doCheck = false; });
+                gomarkdoc = prev.gomarkdoc.overrideAttrs (_: {
+                  doCheck = false;
+                });
               })
             ];
           };
@@ -40,6 +42,7 @@
               imgcat
               chafa
               buf
+              hugo
               gomarkdoc
             ];
 
