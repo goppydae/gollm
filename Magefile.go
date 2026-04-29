@@ -182,6 +182,53 @@ func Tidy() error {
 	return execCmd("go", "mod", "tidy")
 }
 
+// Docs generates API reference and builds the full Hugo site.
+func Docs() error {
+	if err := docGenerate(); err != nil {
+		return err
+	}
+	return execCmd("hugo", "--source", "docs", "--minify")
+}
+
+// DocsServe runs Hugo dev server with live reload on :1313.
+func DocsServe() error {
+	if err := docGenerate(); err != nil {
+		return err
+	}
+	return execCmd("hugo", "server", "--source", "docs", "--buildDrafts")
+}
+
+// PkgSite runs pkgsite for full local API browsing including internals.
+func PkgSite() error {
+	return execCmd("pkgsite", "-open", ".")
+}
+
+func docGenerate() error {
+	for _, pkg := range []struct{ path, out, title string }{
+		{"./sdk", "docs/content/reference/sdk.md", "sdk"},
+		{"./extensions", "docs/content/reference/extensions.md", "extensions"},
+		{"./internal/tools", "docs/content/reference/tools.md", "tools"},
+		{"./internal/agent", "docs/content/reference/agent.md", "agent"},
+	} {
+		if err := execCmd("gomarkdoc", pkg.path, "--output", pkg.out); err != nil {
+			return fmt.Errorf("gomarkdoc %s: %w", pkg.path, err)
+		}
+		if err := prependHugoFrontMatter(pkg.out, pkg.title); err != nil {
+			return fmt.Errorf("front matter for %s: %w", pkg.title, err)
+		}
+	}
+	return nil
+}
+
+func prependHugoFrontMatter(path, title string) error {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	fm := "---\ntitle: \"" + title + "\"\n---\n\n"
+	return os.WriteFile(path, append([]byte(fm), content...), 0644)
+}
+
 // Generate runs protoc to generate Go gRPC stubs for extensions.
 // Generate runs buf generate for all protobuf stubs.
 // - buf.gen.yaml          → internal/gen/gollm/v1/ (agent service)

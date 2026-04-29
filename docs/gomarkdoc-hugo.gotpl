@@ -1,0 +1,7 @@
+{{range .Packages}}---
+title: "{{ .Name }}"
+description: "{{ .Summary }}"
+---
+
+{{template "doc" .Doc}}
+{{end}}

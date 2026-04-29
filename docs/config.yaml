@@ -1,0 +1,25 @@
+baseURL: https://goppydae.github.io/gollm/
+languageCode: en-us
+title: Gollm
+
+module:
+  imports:
+    - path: github.com/McShelby/hugo-theme-relearn
+
+params:
+  themeVariant:
+    - auto:
+        - zen-light
+        - zen-dark
+  disableBreadcrumb: false
+  disableNextPrev: false
+  search:
+    disable: false
+  editURL: https://github.com/goppydae/gollm/edit/main/docs/content/
+
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+  highlight:
+    style: monokai

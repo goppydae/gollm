@@ -1,4 +1,8 @@
-# Tutorial: Creating Skills
+---
+title: Skills
+weight: 10
+description: Reusable prompt templates invoked with /skill:name
+---
 
 Skills are Markdown files that provide `gollm` with specialized, reusable instructions for specific tasks. When a skill is invoked, its content is sent as a user message to the agent along with any arguments you provide.
 
@@ -104,11 +108,9 @@ Always explain the reasoning behind each change before making it.
 
 ## Practical Examples
 
-### Example 1: Code Review Skill
+### Code Review Skill
 
-```
-.gollm/skills/code-review.md
-```
+`.gollm/skills/code-review.md`
 
 ```markdown
 ---
@@ -153,7 +155,7 @@ Or attach a file reference:
 
 ---
 
-### Example 2: Structured Skill with Supporting Files
+### Structured Skill with Supporting Files
 
 ```
 .gollm/skills/
@@ -181,11 +183,9 @@ See the example schema at the path listed in this skill's location directory: `s
 
 ---
 
-### Example 3: Global Utility Skill
+### Global Utility Skill
 
-```
-~/.gollm/skills/explain.md
-```
+`~/.gollm/skills/explain.md`
 
 ```markdown
 ---

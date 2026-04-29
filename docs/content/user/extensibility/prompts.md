@@ -1,4 +1,8 @@
-# Tutorial: Creating Prompt Templates
+---
+title: Prompt Templates
+weight: 20
+description: Reusable editor templates invoked with /prompt:name
+---
 
 Prompt templates are reusable text snippets that expand directly into the TUI input editor. Unlike skills (which are sent to the agent immediately), prompt templates let you pre-fill the editor so you can review, edit, or complete the text before sending.
 
@@ -97,11 +101,9 @@ When you invoke a template via the slash command handler (not the interactive TU
 
 ## Practical Examples
 
-### Example 1: PR Description Template
+### PR Description Template
 
-```
-.gollm/prompts/pr-description.md
-```
+`.gollm/prompts/pr-description.md`
 
 ```markdown
 ---
@@ -134,11 +136,9 @@ Then paste or attach the diff before sending.
 
 ---
 
-### Example 2: Architecture Decision Record
+### Architecture Decision Record
 
-```
-.gollm/prompts/adr.md
-```
+`.gollm/prompts/adr.md`
 
 ```markdown
 ---
@@ -182,11 +182,9 @@ Invoke:
 
 ---
 
-### Example 3: Global Commit Message Template
+### Global Commit Message Template
 
-```
-~/.gollm/prompts/commit.md
-```
+`~/.gollm/prompts/commit.md`
 
 ```markdown
 ---
@@ -196,13 +194,13 @@ description: Generate a conventional commit message
 Generate a commit message following the Conventional Commits specification for the following diff or description of changes.
 
 Format:
-```
+` ` `
 <type>(<scope>): <short description>
 
 <body: what changed and why, wrapped at 72 chars>
 
 <footer: breaking changes, issue references>
-```
+` ` `
 
 Types: feat, fix, docs, style, refactor, perf, test, chore
 
@@ -216,11 +214,9 @@ Invoke:
 
 ---
 
-### Example 4: Code Explanation for PR Comments
+### Code Explanation for PR Comments
 
-```
-.gollm/prompts/explain-for-review.md
-```
+`.gollm/prompts/explain-for-review.md`
 
 ```markdown
 ---

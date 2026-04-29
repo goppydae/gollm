@@ -19,7 +19,14 @@
       devShells = forAllSystems (
         system:
         let
-          pkgs = import nixpkgs { inherit system; };
+          pkgs = import nixpkgs {
+            inherit system;
+            overlays = [
+              (final: prev: {
+                gomarkdoc = prev.gomarkdoc.overrideAttrs (_: { doCheck = false; });
+              })
+            ];
+          };
         in
         {
           default = pkgs.mkShell {
@@ -33,6 +40,7 @@
               imgcat
               chafa
               buf
+              gomarkdoc
             ];
 
             shellHook = ''
