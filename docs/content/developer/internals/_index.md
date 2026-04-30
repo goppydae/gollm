@@ -45,20 +45,27 @@ flowchart TD
     CLI["CLI flags & Config"] --> Svc
 
     subgraph core ["internal/agent"]
-        Agent["Agent\nMessages · SteerQueue · FollowUpQueue\nStateMachine"]
-        RunTurn["runTurn\nprovider.Stream · consumeStream · execTools"]
-        EB["EventBus\nasync · non-blocking · 4096-item buffer"]
+        Agent["Agent
+Messages · SteerQueue · FollowUpQueue
+StateMachine"]
+        RunTurn["runTurn
+provider.Stream · consumeStream · execTools"]
+        EB["EventBus
+async · non-blocking · 4096-item buffer"]
         Agent --> RunTurn
         RunTurn -->|publishes| EB
     end
 
-    Svc["internal/service\nAgentService"] --> core
+    Svc["internal/service
+AgentService"] --> core
 
     RunTurn --> LLM
 
     subgraph llm ["internal/llm"]
-        LLM["Provider interface\nStream · Info"]
-        Adapters["Ollama · OpenAI · Anthropic\nllama.cpp · Google"]
+        LLM["Provider interface
+Stream · Info"]
+        Adapters["Ollama · OpenAI · Anthropic
+llama.cpp · Google"]
         LLM --> Adapters
     end
 
@@ -75,20 +82,27 @@ flowchart TD
 ```mermaid
 flowchart TD
     Input["User Input"] --> Mode["TUI · JSON · Remote Client"]
-    Mode --> PBClient["pb.AgentServiceClient\nbufconn or TCP"]
-    PBClient --> Service["internal/service\ngetOrCreate / loadIfExists"]
+    Mode --> PBClient["pb.AgentServiceClient
+bufconn or TCP"]
+    PBClient --> Service["internal/service
+getOrCreate / loadIfExists"]
     Service --> AP["agent.Prompt(ctx, text)"]
     AP --> MI["ext.ModifyInput()"]
-    MI --> SS["ext.SessionStart() · ext.AgentStart()\nEventAgentStart"]
+    MI --> SS["ext.SessionStart() · ext.AgentStart()
+EventAgentStart"]
 
     SS --> Loop
 
     subgraph Loop ["runTurn loop"]
         direction TB
-        BP["ext.BeforePrompt() · ModifySystemPrompt()\nModifyContext() · BeforeProviderRequest()"]
-        LLMStream["llm.Provider.Stream()\nEventTextDelta · EventThinkingDelta · EventToolCall"]
-        APR["ext.AfterProviderResponse()\nEventTurnStart · ext.TurnStart()"]
-        ToolExec["ext.BeforeToolCall() · execTool() · ext.AfterToolCall()\nEventToolDelta · EventToolOutput"]
+        BP["ext.BeforePrompt() · ModifySystemPrompt()
+ModifyContext() · BeforeProviderRequest()"]
+        LLMStream["llm.Provider.Stream()
+EventTextDelta · EventThinkingDelta · EventToolCall"]
+        APR["ext.AfterProviderResponse()
+EventTurnStart · ext.TurnStart()"]
+        ToolExec["ext.BeforeToolCall() · execTool() · ext.AfterToolCall()
+EventToolDelta · EventToolOutput"]
         TE["ext.TurnEnd()"]
         More{"more tool calls?"}
         BP --> LLMStream --> APR --> ToolExec --> TE --> More

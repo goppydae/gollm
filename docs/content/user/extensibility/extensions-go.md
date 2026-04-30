@@ -280,18 +280,21 @@ See [`examples/sandbox/`](https://github.com/goppydae/gollm/tree/main/examples/s
 ```mermaid
 flowchart TD
     Start["glm startup"] --> Scan["Scan extension directories"]
-    Scan --> Launch["Launch subprocess\nGOLLM_SOCKET_PATH=..."]
+    Scan --> Launch["Launch subprocess
+GOLLM_SOCKET_PATH=..."]
     Launch --> Socket["Wait for socket · dial gRPC"]
     Socket --> Init["Name() · Tools()"]
 
-    Init --> SS["SessionStart(sessionID, reason)\non new session or resume"]
+    Init --> SS["SessionStart(sessionID, reason)
+on new session or resume"]
 
     SS --> MI["ModifyInput(text)"]
     MI --> AS["AgentStart()"]
 
     subgraph turn ["Per LLM turn (repeats until no tool calls)"]
         direction TB
-        T1["BeforePrompt() · ModifySystemPrompt()\nModifyContext() · BeforeProviderRequest()"]
+        T1["BeforePrompt() · ModifySystemPrompt()
+ModifyContext() · BeforeProviderRequest()"]
         T2[/"LLM streams"/]
         T3["AfterProviderResponse() · TurnStart()"]
         subgraph toolloop ["Per tool call"]
@@ -315,7 +318,8 @@ flowchart TD
         LLMSum --> AC
     end
 
-    AE --> SE["SessionEnd(sessionID, reason)\non session reset"]
+    AE --> SE["SessionEnd(sessionID, reason)
+on session reset"]
     SE --> Shutdown["glm shutdown · kill subprocess"]
 ```
 

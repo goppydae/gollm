@@ -30,11 +30,17 @@ Sessions form a **linked tree** via `parentId`. The `session.Manager.BuildTree()
 
 ```mermaid
 flowchart TD
-    A["Session A\n(root)"] --> B["Session B\n(/branch from A)"]
-    A --> C["Session C\n(/fork of A)"]
-    B --> D["Session D\n(/branch from B at msg 5)"]
-    B --> E["Session E\n(/rebase of B)"]
-    B --> F["Session F\n(/merge into B)"]
+    A["Session A
+(root)"] --> B["Session B
+(/branch from A)"]
+    A --> C["Session C
+(/fork of A)"]
+    B --> D["Session D
+(/branch from B at msg 5)"]
+    B --> E["Session E
+(/rebase of B)"]
+    B --> F["Session F
+(/merge into B)"]
 
     style C stroke-dasharray: 5 5
 ```
@@ -49,10 +55,20 @@ flowchart TD
 flowchart TD
     Q{"What do you need?"}
 
-    Q -->|"Explore an alternate\npath from this point"| Branch["/branch [idx]\nChild session, same history up to idx"]
-    Q -->|"Independent copy\nno tree relationship"| Fork["/fork\nDetached snapshot"]
-    Q -->|"Clean up the conversation\nkeep only specific messages"| Rebase["/rebase\nInteractively select messages\nfor a new session"]
-    Q -->|"Combine two sessions\ninto one context"| Merge["/merge <id>\nLLM-synthesized merge turn\nappended to current session"]
+    Q -->|"Explore an alternate
+path from this point"| Branch["/branch [idx]
+Child session, same history up to idx"]
+    Q -->|"Independent copy
+no tree relationship"| Fork["/fork
+Detached snapshot"]
+    Q -->|"Clean up the conversation
+keep only specific messages"| Rebase["/rebase
+Interactively select messages
+for a new session"]
+    Q -->|"Combine two sessions
+into one context"| Merge["/merge <id>
+LLM-synthesized merge turn
+appended to current session"]
 ```
 
 | Command | Creates parent link | Copies history | Interactive |

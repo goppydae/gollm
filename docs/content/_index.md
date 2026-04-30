@@ -1,5 +1,5 @@
 ---
-title: gollm
+title: Gollm
 description: gollm developer documentation
 ---
 
@@ -8,6 +8,8 @@ description: gollm developer documentation
 `gollm` is a powerful, local-first AI agentic harness designed for developers who want a flexible and reliable assistant that runs on their own hardware. It prioritizes local LLMs (via Ollama and llama.cpp) but adapts seamlessly to cloud providers like OpenAI, Anthropic, and Google Gemini.
 
 > A Golem is designed to be a tireless servant to its creator. Brought to life through ritual, created entirely from inanimate matter. It performs physical labor or provides protection.
+
+---
 
 <div style="text-align: center">
 <a href="https://github.com/goppydae/gollm/actions/workflows/ci.yml"><img src="https://github.com/goppydae/gollm/actions/workflows/ci.yml/badge.svg" alt="CI" style="display:inline;vertical-align:bottom;margin:0"></a>
