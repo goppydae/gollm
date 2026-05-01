@@ -2,7 +2,7 @@
 
 **Primitives, not features. Local-first. Extensible.**
 
-`Sharur` is a powerful, local-first AI agentic harness designed for developers who want a flexible and reliable assistant that runs on their own hardware. It prioritizes local LLMs (via Ollama and llama.cpp) but adapts seamlessly to cloud providers like OpenAI, Anthropic, and Google Gemini.
+`Sharur` is a powerful, local-first agentic harness designed for developers who want a flexible and reliable assistant that runs on their own hardware. It prioritizes local LLMs (via Ollama and llama.cpp) but adapts seamlessly to cloud providers like OpenAI, Anthropic, and Google Gemini.
 
 > Sharur, smasher of thousands! The weapon of Ninurta, acting as his counselor and scout - flies ahead, assesses, reports back, then executes.
 
