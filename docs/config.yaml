@@ -10,6 +10,15 @@ module:
   imports:
     - path: github.com/McShelby/hugo-theme-relearn
 
+menu:
+  taxonomylinks:
+    - name: Categories
+      url: /categories/
+      weight: 1
+    - name: Tags
+      url: /tags/
+      weight: 2
+
 params:
   themeVariant:
     - auto:
@@ -37,6 +46,9 @@ params:
     - type: divider
 
   sidebarfootermenus:
+    - type: divider
+    - identifier: taxonomylinks
+      type: menu
     - type: divider
     - identifier: footercontrols
       elements:
