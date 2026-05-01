@@ -3,11 +3,11 @@ package grpcserver
 import (
 	"context"
 
-	"github.com/goppydae/gollm/internal/agent"
-	"github.com/goppydae/gollm/internal/llm"
-	"github.com/goppydae/gollm/internal/service"
-	"github.com/goppydae/gollm/internal/session"
-	"github.com/goppydae/gollm/internal/tools"
+	"github.com/goppydae/sharur/internal/agent"
+	"github.com/goppydae/sharur/internal/llm"
+	"github.com/goppydae/sharur/internal/service"
+	"github.com/goppydae/sharur/internal/session"
+	"github.com/goppydae/sharur/internal/tools"
 )
 
 // Server is a thin wrapper (type alias) around service.Service for backward compatibility.

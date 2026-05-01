@@ -1,6 +1,6 @@
 //go:build mage
 
-// Package main is the Mage build file for gollm.
+// Package main is the Mage build file for sharur.
 // Usage: mage <target>
 package main
 
@@ -15,11 +15,11 @@ import (
 	"strings"
 )
 
-// Build the gollm binary.
+// Build the sharur binary.
 func Build() error {
 	v := getVersion()
 	ldflags := fmt.Sprintf("-X main.version=%s", v)
-	return execCmd("go", "build", "-ldflags", ldflags, "-o", binaryPath(), "./cmd/glm")
+	return execCmd("go", "build", "-ldflags", ldflags, "-o", binaryPath(), "./cmd/shr")
 }
 
 // Release builds cross-platform binaries and archives them.
@@ -51,11 +51,11 @@ func Release() error {
 		if p.os == "windows" {
 			ext = ".exe"
 		}
-		name := fmt.Sprintf("glm-%s-%s-%s%s", v, p.os, p.arch, ext)
+		name := fmt.Sprintf("shr-%s-%s-%s%s", v, p.os, p.arch, ext)
 		target := filepath.Join("dist", name)
 
 		fmt.Printf("Building %s/%s...\n", p.os, p.arch)
-		cmd := exec.Command("go", "build", "-ldflags", ldflags, "-o", target, "./cmd/glm")
+		cmd := exec.Command("go", "build", "-ldflags", ldflags, "-o", target, "./cmd/shr")
 		cmd.Env = append(os.Environ(), "GOOS="+p.os, "GOARCH="+p.arch, "CGO_ENABLED=0")
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -66,13 +66,13 @@ func Release() error {
 		// Create archive
 		if p.os == "windows" {
 			// .zip
-			zipName := fmt.Sprintf("glm-%s-%s-%s.zip", v, p.os, p.arch)
+			zipName := fmt.Sprintf("shr-%s-%s-%s.zip", v, p.os, p.arch)
 			if err := execCmd("zip", "-j", filepath.Join("dist", zipName), target); err != nil {
 				return fmt.Errorf("failed to zip %s (is zip installed?): %w", zipName, err)
 			}
 		} else {
 			// .tar.gz
-			tarName := fmt.Sprintf("glm-%s-%s-%s.tar.gz", v, p.os, p.arch)
+			tarName := fmt.Sprintf("shr-%s-%s-%s.tar.gz", v, p.os, p.arch)
 			if err := execCmd("tar", "-czf", filepath.Join("dist", tarName), "-C", "dist", name); err != nil {
 				return fmt.Errorf("failed to tar %s: %w", tarName, err)
 			}
@@ -167,7 +167,7 @@ func Lint() error {
 
 // Clean removes build artifacts.
 func Clean() error {
-	os.Remove("glm")
+	os.Remove("shr")
 	os.Remove("coverage.out")
 	return nil
 }
@@ -231,7 +231,7 @@ func prependHugoFrontMatter(path, title string) error {
 
 // Generate runs protoc to generate Go gRPC stubs for extensions.
 // Generate runs buf generate for all protobuf stubs.
-// - buf.gen.yaml          → internal/gen/gollm/v1/ (agent service)
+// - buf.gen.yaml          → internal/gen/sharur/v1/ (agent service)
 // - buf.gen.extensions.yaml → extensions/gen/      (plugin extension service)
 func Generate() error {
 	if err := execCmd("buf", "generate", "proto", "--template", "buf.gen.yaml"); err != nil {
@@ -274,10 +274,10 @@ func All() error {
 
 // Install builds and copies to GOPATH/bin.
 func Install() error {
-	return execCmd("go", "install", "./cmd/glm")
+	return execCmd("go", "install", "./cmd/shr")
 }
 
-// Run builds and executes gollm with the given arguments.
+// Run builds and executes sharur with the given arguments.
 func Run() error {
 	if err := Build(); err != nil {
 		return err
@@ -291,9 +291,9 @@ func Run() error {
 
 func binaryPath() string {
 	if runtime.GOOS == "windows" {
-		return ".\\glm.exe"
+		return ".\\shr.exe"
 	}
-	return "./glm"
+	return "./shr"
 }
 
 func execCmd(name string, arg ...string) error {

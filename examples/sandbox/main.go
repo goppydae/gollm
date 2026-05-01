@@ -1,19 +1,19 @@
-// Command gollm-sandbox is a standalone gRPC extension that restricts gollm
+// Command sharur-sandbox is a standalone gRPC extension that restricts sharur
 // file-system tools to the directory it is started in.
 //
 // Build:
 //
-//	cd examples/sandbox && go build -o gollm-sandbox .
+//	cd examples/sandbox && go build -o sharur-sandbox .
 //
 // Use:
 //
-//	glm --extension /path/to/gollm-sandbox "What files are here?"
+//	shr --extension /path/to/sharur-sandbox "What files are here?"
 package main
 
 import (
 	"os"
 
-	"github.com/goppydae/gollm/extensions"
+	"github.com/goppydae/sharur/extensions"
 )
 
 func main() {

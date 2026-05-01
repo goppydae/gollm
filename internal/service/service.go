@@ -1,4 +1,4 @@
-// Package service implements the core gollm logic behind a Protobuf-defined interface.
+// Package service implements the core sharur logic behind a Protobuf-defined interface.
 package service
 
 import (
@@ -12,13 +12,13 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/goppydae/gollm/internal/agent"
-	"github.com/goppydae/gollm/internal/config"
-	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
-	"github.com/goppydae/gollm/internal/llm"
-	"github.com/goppydae/gollm/internal/session"
-	"github.com/goppydae/gollm/internal/tools"
-	"github.com/goppydae/gollm/internal/types"
+	"github.com/goppydae/sharur/internal/agent"
+	"github.com/goppydae/sharur/internal/config"
+	pb "github.com/goppydae/sharur/internal/gen/sharur/v1"
+	"github.com/goppydae/sharur/internal/llm"
+	"github.com/goppydae/sharur/internal/session"
+	"github.com/goppydae/sharur/internal/tools"
+	"github.com/goppydae/sharur/internal/types"
 )
 
 // Service implements pb.AgentServiceServer.

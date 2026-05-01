@@ -1,11 +1,11 @@
 ---
 title: Go Extensions
 weight: 30
-description: Building gollm extensions in Go using the extensions package
+description: Building sharur extensions in Go using the extensions package
 categories: [extensions]
 ---
 
-Extensions let you add new behaviors to `gollm` beyond what's possible with skills and prompt templates. They can observe and modify every stage of the agent loop — from the raw user input through each LLM turn and tool call to compaction and session teardown. Extensions run as separate processes and communicate with `gollm` via gRPC.
+Extensions let you add new behaviors to `sharur` beyond what's possible with skills and prompt templates. They can observe and modify every stage of the agent loop — from the raw user input through each LLM turn and tool call to compaction and session teardown. Extensions run as separate processes and communicate with `sharur` via gRPC.
 
 ---
 
@@ -26,27 +26,27 @@ All extension types use the same gRPC protocol. The loader treats `.py` files sp
 Extensions are loaded from directories listed in your config under `extensions`:
 
 ```jsonc
-// .gollm/config.json
+// .sharur/config.json
 {
-  "extensions": [".gollm/extensions"]
+  "extensions": [".sharur/extensions"]
 }
 ```
 
-Or globally in `~/.gollm/config.json`.
+Or globally in `~/.sharur/config.json`.
 
-Place your extension binary or script in the configured directory. `gollm` will automatically discover and launch it on startup.
+Place your extension binary or script in the configured directory. `sharur` will automatically discover and launch it on startup.
 
 You can also load a specific extension at runtime with the `--extension` flag:
 
 ```bash
-glm --extension /path/to/my-extension "Your prompt here"
+shr --extension /path/to/my-extension "Your prompt here"
 ```
 
 ---
 
 ## The Plugin Interface
 
-Every Go extension implements the `extensions.Plugin` interface from `github.com/goppydae/gollm/extensions`. Embed `extensions.NoopPlugin` and override only the hooks you need.
+Every Go extension implements the `extensions.Plugin` interface from `github.com/goppydae/sharur/extensions`. Embed `extensions.NoopPlugin` and override only the hooks you need.
 
 ### Load-time hooks
 
@@ -100,7 +100,7 @@ Key behaviors:
 ## Example: Git Context Injection
 
 ```go
-// .gollm/extensions/git-context/main.go
+// .sharur/extensions/git-context/main.go
 package main
 
 import (
@@ -109,7 +109,7 @@ import (
     "os/exec"
     "strings"
 
-    "github.com/goppydae/gollm/extensions"
+    "github.com/goppydae/sharur/extensions"
 )
 
 type GitContextPlugin struct {
@@ -146,7 +146,7 @@ func main() {
 Build and auto-discover:
 
 ```bash
-cd .gollm/extensions/git-context && go build -o ../git-context .
+cd .sharur/extensions/git-context && go build -o ../git-context .
 ```
 
 ---
@@ -160,7 +160,7 @@ type AuditPlugin struct {
 }
 
 func (p *AuditPlugin) SessionStart(_ context.Context, sessionID string, reason agent.SessionStartReason) {
-    p.log, _ = os.OpenFile(fmt.Sprintf("/tmp/gollm-%s.log", sessionID[:8]), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+    p.log, _ = os.OpenFile(fmt.Sprintf("/tmp/sharur-%s.log", sessionID[:8]), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
     fmt.Fprintf(p.log, "session %s (%s)\n", sessionID, reason)
 }
 
@@ -272,7 +272,7 @@ func (p *SandboxPlugin) BeforeToolCall(_ context.Context, call extensions.ToolCa
 }
 ```
 
-See [`examples/sandbox/`](https://github.com/goppydae/gollm/tree/main/examples/sandbox) for a complete standalone implementation.
+See [`examples/sandbox/`](https://github.com/goppydae/sharur/tree/main/examples/sandbox) for a complete standalone implementation.
 
 ---
 
@@ -280,9 +280,9 @@ See [`examples/sandbox/`](https://github.com/goppydae/gollm/tree/main/examples/s
 
 ```mermaid
 flowchart TD
-    Start["glm startup"] --> Scan["Scan extension directories"]
+    Start["shr startup"] --> Scan["Scan extension directories"]
     Scan --> Launch["Launch subprocess
-GOLLM_SOCKET_PATH=..."]
+SHARUR_SOCKET_PATH=..."]
     Launch --> Socket["Wait for socket · dial gRPC"]
     Socket --> Init["Name() · Tools()"]
 
@@ -321,7 +321,7 @@ ModifyContext() · BeforeProviderRequest()"]
 
     AE --> SE["SessionEnd(sessionID, reason)
 on session reset"]
-    SE --> Shutdown["glm shutdown · kill subprocess"]
+    SE --> Shutdown["shr shutdown · kill subprocess"]
 ```
 
 ---
@@ -332,8 +332,8 @@ If your extension is written in Go and you control the build, you can implement 
 
 ```go
 import (
-    "github.com/goppydae/gollm/internal/agent"
-    "github.com/goppydae/gollm/internal/tools"
+    "github.com/goppydae/sharur/internal/agent"
+    "github.com/goppydae/sharur/internal/tools"
 )
 
 type MyExtension struct {
@@ -363,13 +363,13 @@ func (e *MyExtension) BeforeToolCall(ctx context.Context, call *agent.ToolCall, 
 }
 ```
 
-Pass the extension via `ag.SetExtensions()` from the SDK or directly in `cmd/glm`.
+Pass the extension via `ag.SetExtensions()` from the SDK or directly in `cmd/shr`.
 
 ---
 
 ## Tips
 
-- **Extensions are isolated processes.** A crash in an extension will not crash `gollm` — the loader catches errors and logs them.
+- **Extensions are isolated processes.** A crash in an extension will not crash `sharur` — the loader catches errors and logs them.
 - **Keep `BeforePrompt` and `ModifySystemPrompt` fast.** They run before every single LLM call. Cache data when possible; avoid blocking network calls.
 - **`ModifyContext` does not affect the stored transcript.** Changes to the message slice are only visible to the LLM for that turn.
 - **Use skills for static context.** If you only need to append static text to the system prompt, a skill is simpler than an extension.

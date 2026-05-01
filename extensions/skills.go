@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/goppydae/gollm/internal/agent"
-	"github.com/goppydae/gollm/internal/skills"
-	"github.com/goppydae/gollm/internal/tools"
+	"github.com/goppydae/sharur/internal/agent"
+	"github.com/goppydae/sharur/internal/skills"
+	"github.com/goppydae/sharur/internal/tools"
 )
 
 // SkillsMetadataExtension lists all available skills in the system prompt.

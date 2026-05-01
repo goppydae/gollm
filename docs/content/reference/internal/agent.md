@@ -3,7 +3,7 @@
 # agent
 
 ```go
-import "github.com/goppydae/gollm/internal/agent"
+import "github.com/goppydae/sharur/internal/agent"
 ```
 
 Package agent provides the stateful agent with transcript, tools, and events.
@@ -109,7 +109,7 @@ const (
 ```go
 const SUMMARIZATION_PROMPT = `The messages above are a conversation to summarize. Create a structured context checkpoint summary that another LLM will use to continue the work.
 
-Start your response with the exact string: <!-- gollm-summary -->
+Start your response with the exact string: <!-- sharur-summary -->
 
 Then use this EXACT format:
 
@@ -167,7 +167,7 @@ Be concise. Focus on what's needed to understand the kept suffix.`
 ```go
 const UPDATE_SUMMARIZATION_PROMPT = `The messages above are NEW conversation messages to incorporate into the existing summary provided in <previous-summary> tags.
 
-Start your response with the exact string: <!-- gollm-summary -->
+Start your response with the exact string: <!-- sharur-summary -->
 
 Update the existing structured summary with new information. RULES:
 - PRESERVE all existing information from the previous summary

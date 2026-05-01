@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Config holds all gollm configuration.
+// Config holds all sharur configuration.
 type Config struct {
 	Model    string `mapstructure:"defaultModel"`
 	Provider string `mapstructure:"defaultProvider"`
@@ -79,8 +79,8 @@ type Config struct {
 	GRPCAddr string `mapstructure:"grpcAddr"`
 }
 
-// Load reads configuration from the global (~/.gollm/config.json) and project-local
-// (.gollm/config.json) files, merging them with viper.
+// Load reads configuration from the global (~/.sharur/config.json) and project-local
+// (.sharur/config.json) files, merging them with viper.
 func Load() (*Config, error) {
 	v := viper.New()
 	v.SetConfigType("json")
@@ -90,7 +90,7 @@ func Load() (*Config, error) {
 	// Global config
 	home, _ := os.UserHomeDir()
 	v.SetConfigName("config")
-	v.AddConfigPath(filepath.Join(home, ".gollm"))
+	v.AddConfigPath(filepath.Join(home, ".sharur"))
 	// Silently ignore missing file
 	_ = v.ReadInConfig()
 
@@ -99,11 +99,11 @@ func Load() (*Config, error) {
 	lv.SetConfigType("json")
 	lv.SetConfigName("config")
 
-	// Search upwards for .gollm directory
-	if projectGollm := FindProjectGollm(); projectGollm != "" {
-		lv.AddConfigPath(projectGollm)
+	// Search upwards for .sharur directory
+	if projectSharur := FindProjectSharur(); projectSharur != "" {
+		lv.AddConfigPath(projectSharur)
 	} else {
-		lv.AddConfigPath(".gollm")
+		lv.AddConfigPath(".sharur")
 	}
 
 	if err := lv.ReadInConfig(); err == nil {
@@ -119,13 +119,13 @@ func Load() (*Config, error) {
 
 	// Env-var overrides take precedence over config file values.
 	// Preferred credential mechanism — avoids storing keys in dotfile repos.
-	if v := os.Getenv("GOLLM_ANTHROPIC_API_KEY"); v != "" {
+	if v := os.Getenv("SHARUR_ANTHROPIC_API_KEY"); v != "" {
 		cfg.AnthropicAPIKey = v
 	}
-	if v := os.Getenv("GOLLM_OPENAI_API_KEY"); v != "" {
+	if v := os.Getenv("SHARUR_OPENAI_API_KEY"); v != "" {
 		cfg.OpenAIAPIKey = v
 	}
-	if v := os.Getenv("GOLLM_GOOGLE_API_KEY"); v != "" {
+	if v := os.Getenv("SHARUR_GOOGLE_API_KEY"); v != "" {
 		cfg.GoogleAPIKey = v
 	}
 
@@ -147,14 +147,14 @@ func Load() (*Config, error) {
 	return &cfg, nil
 }
 
-// FindProjectGollm searches upwards from the current directory for a ".gollm" directory.
-func FindProjectGollm() string {
+// FindProjectSharur searches upwards from the current directory for a ".sharur" directory.
+func FindProjectSharur() string {
 	curr, err := os.Getwd()
 	if err != nil {
 		return ""
 	}
 	for {
-		path := filepath.Join(curr, ".gollm")
+		path := filepath.Join(curr, ".sharur")
 		if info, err := os.Stat(path); err == nil && info.IsDir() {
 			return path
 		}
@@ -204,8 +204,8 @@ func DefaultConfig() *Config {
 		ThinkingLevel: "medium",
 		Mode:          "interactive",
 		Transport:     "sse",
-		SessionDir:    filepath.Join(home, ".gollm", "sessions"),
-		Extensions:    []string{filepath.Join(home, ".gollm", "extensions")},
+		SessionDir:    filepath.Join(home, ".sharur", "sessions"),
+		Extensions:    []string{filepath.Join(home, ".sharur", "extensions")},
 		PythonPath:    "python3",
 		OllamaBaseURL: "http://localhost:11434",
 		GRPCAddr:      ":50051",
@@ -220,7 +220,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("mode", "interactive")
 	v.SetDefault("theme", "dark")
 	v.SetDefault("transport", "sse")
-	v.SetDefault("sessionDir", filepath.Join(home, ".gollm", "sessions"))
+	v.SetDefault("sessionDir", filepath.Join(home, ".sharur", "sessions"))
 	v.SetDefault("ollamaBaseURL", "http://localhost:11434")
 	v.SetDefault("llamaCppBaseURL", "http://localhost:8080")
 	v.SetDefault("compaction.enabled", true)

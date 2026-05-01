@@ -1,14 +1,14 @@
 ---
 title: Quickstart
 weight: 10
-description: Embed a gollm agent in a Go program with NewAgent, Subscribe, Prompt, and Idle
+description: Embed a sharur agent in a Go program with NewAgent, Subscribe, Prompt, and Idle
 categories: [sdk, getting-started]
 ---
 
-Import `github.com/goppydae/gollm/sdk` to embed an agent in any Go program.
+Import `github.com/goppydae/sharur/sdk` to embed an agent in any Go program.
 
 ```go
-import "github.com/goppydae/gollm/sdk"
+import "github.com/goppydae/sharur/sdk"
 
 ag, err := sdk.NewAgent(sdk.Config{
     Provider: "ollama",

@@ -11,21 +11,21 @@ import (
 
 	"google.golang.org/grpc"
 
-	proto "github.com/goppydae/gollm/extensions/gen"
-	"github.com/goppydae/gollm/internal/agent"
-	"github.com/goppydae/gollm/internal/llm"
-	"github.com/goppydae/gollm/internal/tools"
-	"github.com/goppydae/gollm/internal/types"
+	proto "github.com/goppydae/sharur/extensions/gen"
+	"github.com/goppydae/sharur/internal/agent"
+	"github.com/goppydae/sharur/internal/llm"
+	"github.com/goppydae/sharur/internal/tools"
+	"github.com/goppydae/sharur/internal/types"
 )
 
 const extensionRPCTimeout = 5 * time.Second
 
-// Serve starts a gRPC server on the Unix socket path provided via GOLLM_SOCKET_PATH.
+// Serve starts a gRPC server on the Unix socket path provided via SHARUR_SOCKET_PATH.
 // This is the entry point for extension binaries.
 func Serve(impl Plugin) {
-	socketPath := os.Getenv("GOLLM_SOCKET_PATH")
+	socketPath := os.Getenv("SHARUR_SOCKET_PATH")
 	if socketPath == "" {
-		log.Fatal("extensions.Serve: GOLLM_SOCKET_PATH environment variable not set")
+		log.Fatal("extensions.Serve: SHARUR_SOCKET_PATH environment variable not set")
 	}
 	lis, err := net.Listen("unix", socketPath)
 	if err != nil {

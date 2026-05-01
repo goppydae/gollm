@@ -1,12 +1,12 @@
 ---
 title: Python Extensions
 weight: 40
-description: Building gollm extensions in Python using the gRPC proto stubs
+description: Building sharur extensions in Python using the gRPC proto stubs
 categories: [extensions]
 tags: [python]
 ---
 
-Python extensions use the same gRPC protocol as Go extensions. The loader detects `.py` files and runs them with the configured Python interpreter, passing `GOLLM_SOCKET_PATH` as an environment variable. The extension is expected to listen on that Unix socket.
+Python extensions use the same gRPC protocol as Go extensions. The loader detects `.py` files and runs them with the configured Python interpreter, passing `SHARUR_SOCKET_PATH` as an environment variable. The extension is expected to listen on that Unix socket.
 
 ---
 
@@ -23,8 +23,8 @@ pip install grpcio grpcio-tools
 ```bash
 python -m grpc_tools.protoc \
   -I extensions/proto \
-  --python_out=.gollm/extensions \
-  --grpc_python_out=.gollm/extensions \
+  --python_out=.sharur/extensions \
+  --grpc_python_out=.sharur/extensions \
   extensions/proto/extension.proto
 ```
 
@@ -35,7 +35,7 @@ This deposits `extension_pb2.py` and `extension_pb2_grpc.py` alongside your scri
 ## Implement the Extension
 
 ```python
-# .gollm/extensions/ticket_context.py
+# .sharur/extensions/ticket_context.py
 import os
 import subprocess
 import grpc
@@ -81,7 +81,7 @@ class TicketContextServicer(extension_pb2_grpc.ExtensionServicer):
 
 
 def serve():
-    socket_path = os.environ["GOLLM_SOCKET_PATH"]
+    socket_path = os.environ["SHARUR_SOCKET_PATH"]
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     extension_pb2_grpc.add_ExtensionServicer_to_server(TicketContextServicer(), server)
     server.add_insecure_port(f"unix:{socket_path}")
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     serve()
 ```
 
-Place the script in your extensions directory. `gollm` runs it as `python ticket_context.py` on startup.
+Place the script in your extensions directory. `sharur` runs it as `python ticket_context.py` on startup.
 
 ---
 

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goppydae/gollm/internal/llm"
-	"github.com/goppydae/gollm/internal/tools"
-	"github.com/goppydae/gollm/internal/types"
+	"github.com/goppydae/sharur/internal/llm"
+	"github.com/goppydae/sharur/internal/tools"
+	"github.com/goppydae/sharur/internal/types"
 )
 
 // runTurn is the core agentic loop: prompt → LLM → tools → LLM → ... until no more tool calls.

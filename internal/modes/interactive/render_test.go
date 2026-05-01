@@ -5,14 +5,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/goppydae/gollm/internal/config"
-	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
-	"github.com/goppydae/gollm/internal/session"
-	"github.com/goppydae/gollm/internal/themes"
+	"github.com/goppydae/sharur/internal/config"
+	pb "github.com/goppydae/sharur/internal/gen/sharur/v1"
+	"github.com/goppydae/sharur/internal/session"
+	"github.com/goppydae/sharur/internal/themes"
 )
 
 // TestRenderOutput exercises the full rendering pipeline with a conversation.
-// ANSI output is written to /tmp/gollm-render-output.txt for inspection.
+// ANSI output is written to /tmp/sharur-render-output.txt for inspection.
 func TestRenderOutput(t *testing.T) {
 	eventCh := make(chan *pb.AgentEvent, 64)
 	m := newModel("gpt-4", "test", "medium", 128000, nil, "", eventCh, session.NewManager(""), config.DefaultConfig(), "", themes.NewStyle(*themes.DarkTheme()))
@@ -40,11 +40,11 @@ func TestRenderOutput(t *testing.T) {
 	output := view.Content
 
 	// Write to file for inspection
-	err := os.WriteFile("/tmp/gollm-render-output.txt", []byte(output), 0o644)
+	err := os.WriteFile("/tmp/sharur-render-output.txt", []byte(output), 0o644)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("Rendered %d bytes to /tmp/gollm-render-output.txt", len(output))
+	t.Logf("Rendered %d bytes to /tmp/sharur-render-output.txt", len(output))
 
 	// Check that ANSI escape codes are present
 	if !strings.Contains(output, "\x1b[") {
@@ -69,11 +69,11 @@ func TestRenderInitialState(t *testing.T) {
 	view := m.View()
 	output := view.Content
 
-	err := os.WriteFile("/tmp/gollm-render-initial.txt", []byte(output), 0o644)
+	err := os.WriteFile("/tmp/sharur-render-initial.txt", []byte(output), 0o644)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("Rendered %d bytes to /tmp/gollm-render-initial.txt", len(output))
+	t.Logf("Rendered %d bytes to /tmp/sharur-render-initial.txt", len(output))
 }
 
 // TestRenderWithToolCalls renders with simulated tool calls in progress.
@@ -97,9 +97,9 @@ func TestRenderWithToolCalls(t *testing.T) {
 	view := m.View()
 	output := view.Content
 
-	err := os.WriteFile("/tmp/gollm-render-toolcalls.txt", []byte(output), 0o644)
+	err := os.WriteFile("/tmp/sharur-render-toolcalls.txt", []byte(output), 0o644)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("Rendered %d bytes to /tmp/gollm-render-toolcalls.txt", len(output))
+	t.Logf("Rendered %d bytes to /tmp/sharur-render-toolcalls.txt", len(output))
 }

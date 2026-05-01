@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/goppydae/gollm/internal/config"
+	"github.com/goppydae/sharur/internal/config"
 )
 
 // Prompt represents a parsed prompt template.
@@ -22,12 +22,12 @@ type Prompt struct {
 func DefaultDirs() []string {
 	home, _ := os.UserHomeDir()
 	dirs := []string{
-		filepath.Join(home, ".gollm", "prompts"),
+		filepath.Join(home, ".sharur", "prompts"),
 	}
-	if projectGollm := config.FindProjectGollm(); projectGollm != "" {
-		dirs = append(dirs, filepath.Join(projectGollm, "prompts"))
+	if projectSharur := config.FindProjectSharur(); projectSharur != "" {
+		dirs = append(dirs, filepath.Join(projectSharur, "prompts"))
 	}
-	dirs = append(dirs, ".gollm/prompts") // fallback
+	dirs = append(dirs, ".sharur/prompts") // fallback
 	return dirs
 }
 

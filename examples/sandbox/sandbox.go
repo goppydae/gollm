@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/goppydae/gollm/extensions"
+	"github.com/goppydae/sharur/extensions"
 )
 
 type sandboxPlugin struct {
@@ -44,7 +44,7 @@ func (s *sandboxPlugin) BeforeToolCall(_ context.Context, call extensions.ToolCa
 		if err := json.Unmarshal(raw, &val); err != nil || val == "" {
 			continue
 		}
-		val = strings.TrimPrefix(val, "@") // strip gollm's '@' path prefix
+		val = strings.TrimPrefix(val, "@") // strip sharur's '@' path prefix
 		abs, err := filepath.Abs(val)
 		if err != nil {
 			return extensions.ToolResult{

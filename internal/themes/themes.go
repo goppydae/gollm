@@ -1,4 +1,4 @@
-// Package themes provides a token-based color system for the gollm TUI.
+// Package themes provides a token-based color system for the sharur TUI.
 // Themes are loaded from JSON/YAML config files or used from the bundled set.
 package themes
 
@@ -21,8 +21,8 @@ import (
 func DefaultDirs() []string {
 	home, _ := os.UserHomeDir()
 	return []string{
-		filepath.Join(home, ".gollm", "themes"),
-		".gollm/themes",
+		filepath.Join(home, ".sharur", "themes"),
+		".sharur/themes",
 	}
 }
 

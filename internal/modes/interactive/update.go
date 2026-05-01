@@ -19,9 +19,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
-	"github.com/goppydae/gollm/internal/prompts"
-	"github.com/goppydae/gollm/internal/skills"
+	pb "github.com/goppydae/sharur/internal/gen/sharur/v1"
+	"github.com/goppydae/sharur/internal/prompts"
+	"github.com/goppydae/sharur/internal/skills"
 )
 
 // Update implements tea.Model.Update.

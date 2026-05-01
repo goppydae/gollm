@@ -1,4 +1,4 @@
-module github.com/goppydae/gollm/docs
+module github.com/goppydae/sharur/docs
 
 go 1.26.2
 

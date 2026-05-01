@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/goppydae/gollm/internal/types"
+	"github.com/goppydae/sharur/internal/types"
 )
 
 // sseLines returns an SSE response body from data lines.

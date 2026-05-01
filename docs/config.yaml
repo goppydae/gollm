@@ -1,6 +1,6 @@
-baseURL: https://goppydae.github.io/gollm/
+baseURL: https://goppydae.github.io/sharur/
 languageCode: en-us
-title: Gollm
+title: Sharur
 
 taxonomies:
   category: categories
@@ -30,7 +30,7 @@ params:
   titleSeparator: "-"
   search:
     disable: false
-  editURL: https://github.com/goppydae/gollm/edit/main/docs/content/
+  editURL: https://github.com/goppydae/sharur/edit/main/docs/content/
 
   sidebarheadermenus:
     - type: divider
@@ -39,10 +39,10 @@ params:
       elements:
         - type: homelink
         - type: githublink
-          url: "https://github.com/goppydae/gollm"
+          url: "https://github.com/goppydae/sharur"
           label: GitHub
         - type: pkgsite
-          repo: "github.com/goppydae/gollm"
+          repo: "github.com/goppydae/sharur"
     - type: divider
 
   sidebarfootermenus:

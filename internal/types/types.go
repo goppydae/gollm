@@ -1,4 +1,4 @@
-// Package types holds shared types used across gollm packages.
+// Package types holds shared types used across sharur packages.
 package types
 
 import (

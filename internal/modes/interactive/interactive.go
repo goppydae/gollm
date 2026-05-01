@@ -8,10 +8,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/goppydae/gollm/internal/config"
-	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
-	"github.com/goppydae/gollm/internal/session"
-	"github.com/goppydae/gollm/internal/themes"
+	"github.com/goppydae/sharur/internal/config"
+	pb "github.com/goppydae/sharur/internal/gen/sharur/v1"
+	"github.com/goppydae/sharur/internal/session"
+	"github.com/goppydae/sharur/internal/themes"
 )
 
 // Options holds optional startup options for interactive mode.

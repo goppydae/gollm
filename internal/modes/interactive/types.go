@@ -13,10 +13,10 @@ import (
 	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/viewport"
 
-	"github.com/goppydae/gollm/internal/config"
-	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
-	"github.com/goppydae/gollm/internal/session"
-	"github.com/goppydae/gollm/internal/themes"
+	"github.com/goppydae/sharur/internal/config"
+	pb "github.com/goppydae/sharur/internal/gen/sharur/v1"
+	"github.com/goppydae/sharur/internal/session"
+	"github.com/goppydae/sharur/internal/themes"
 )
 
 // Layout constants.

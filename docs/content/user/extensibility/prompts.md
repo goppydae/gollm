@@ -18,12 +18,12 @@ When you type `/prompt:<name>` and press Enter, the template content is loaded i
 
 ## Prompt Template Directories
 
-`gollm` searches these locations (in order):
+`sharur` searches these locations (in order):
 
 | Path | Scope |
 |---|---|
-| `~/.gollm/prompts/` | Global — available in all projects |
-| `.gollm/prompts/` (project root) | Project-specific templates |
+| `~/.sharur/prompts/` | Global — available in all projects |
+| `.sharur/prompts/` (project root) | Project-specific templates |
 
 ---
 
@@ -32,7 +32,7 @@ When you type `/prompt:<name>` and press Enter, the template content is loaded i
 A prompt template is any `.md` file in a prompts directory. The filename (without extension) is the template name.
 
 ```
-.gollm/prompts/bug-report.md
+.sharur/prompts/bug-report.md
 ```
 
 Invoke with:
@@ -58,7 +58,7 @@ Describe the bug you found:
 
 **Environment:**
 - OS:
-- glm version:
+- shr version:
 - Model:
 ```
 
@@ -97,7 +97,7 @@ Describe the bug you found in the $1 component:
 
 Templates support positional argument placeholders: `$1`, `$2`, etc.
 
-When you invoke a template via the slash command handler (not the interactive TUI), arguments after the template name are substituted. To mitigate prompt injection, `gollm` automatically wraps these arguments in `<untrusted_input>` tags. In the TUI, the template expands as-is and you fill in the values manually.
+When you invoke a template via the slash command handler (not the interactive TUI), arguments after the template name are substituted. To mitigate prompt injection, `sharur` automatically wraps these arguments in `<untrusted_input>` tags. In the TUI, the template expands as-is and you fill in the values manually.
 
 ---
 
@@ -105,7 +105,7 @@ When you invoke a template via the slash command handler (not the interactive TU
 
 ### PR Description Template
 
-`.gollm/prompts/pr-description.md`
+`.sharur/prompts/pr-description.md`
 
 ```markdown
 ---
@@ -140,7 +140,7 @@ Then paste or attach the diff before sending.
 
 ### Architecture Decision Record
 
-`.gollm/prompts/adr.md`
+`.sharur/prompts/adr.md`
 
 ```markdown
 ---
@@ -186,7 +186,7 @@ Invoke:
 
 ### Global Commit Message Template
 
-`~/.gollm/prompts/commit.md`
+`~/.sharur/prompts/commit.md`
 
 ```markdown
 ---
@@ -218,7 +218,7 @@ Invoke:
 
 ### Code Explanation for PR Comments
 
-`.gollm/prompts/explain-for-review.md`
+`.sharur/prompts/explain-for-review.md`
 
 ```markdown
 ---
@@ -237,10 +237,10 @@ Code:
 - **Prompt templates are for your input.** They expand into the editor, not directly to the agent. This gives you a chance to customize before sending.
 - **Use `$1`, `$2` placeholders** for dynamic parts you'll always fill in differently. Leave static boilerplate as literal text.
 - **Combine with `@` file attachments.** Type `/prompt:code-review` then add `@src/myfile.go` before pressing Enter to attach a file.
-- **Project-specific overrides.** A template in `.gollm/prompts/` with the same name as a global template takes priority for that project.
+- **Project-specific overrides.** A template in `.sharur/prompts/` with the same name as a global template takes priority for that project.
 - **Organize with subdirectories.** Templates are discovered recursively, so you can group them:
   ```
-  .gollm/prompts/
+  .sharur/prompts/
     code/
       refactor.md
       review.md

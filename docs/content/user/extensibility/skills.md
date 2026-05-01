@@ -6,13 +6,13 @@ categories: [extensions]
 tags: [skills]
 ---
 
-Skills are Markdown files that provide `gollm` with specialized, reusable instructions for specific tasks. When a skill is invoked, its content is sent as a user message to the agent along with any arguments you provide.
+Skills are Markdown files that provide `sharur` with specialized, reusable instructions for specific tasks. When a skill is invoked, its content is sent as a user message to the agent along with any arguments you provide.
 
 ---
 
 ## How Skills Work
 
-When `gollm` starts, it scans the skill directories and adds a list of available skills to the system prompt. The agent knows which skills exist and their descriptions. You can explicitly invoke a skill with `/skill:<name>` from the TUI, or the agent may choose to invoke one automatically via the `read` tool or a specialized skill tool call.
+When `sharur` starts, it scans the skill directories and adds a list of available skills to the system prompt. The agent knows which skills exist and their descriptions. You can explicitly invoke a skill with `/skill:<name>` from the TUI, or the agent may choose to invoke one automatically via the `read` tool or a specialized skill tool call.
 
 When you invoke a skill via `/skill:<name>`, it is executed as a **skill tool**, which loads the content and sends it to the agent:
 
@@ -30,12 +30,12 @@ your additional arguments here
 
 ## Skill Discovery Directories
 
-`gollm` searches for skills in these locations (in order):
+`sharur` searches for skills in these locations (in order):
 
 | Path | Scope |
 |---|---|
-| `~/.gollm/skills/` | Global — available in all projects |
-| `.gollm/skills/` (project root) | Project-specific skills |
+| `~/.sharur/skills/` | Global — available in all projects |
+| `.sharur/skills/` (project root) | Project-specific skills |
 
 Skills with the same name in a project directory override global ones.
 
@@ -48,7 +48,7 @@ Skills with the same name in a project directory override global ones.
 Create a `.md` file directly in a skills directory. The filename (without extension) becomes the skill name.
 
 ```
-.gollm/skills/refactor.md
+.sharur/skills/refactor.md
 ```
 
 Invoke with:
@@ -61,7 +61,7 @@ Invoke with:
 Create a directory containing a `SKILL.md` file. The **directory name** becomes the skill name. This format lets you include supporting files (examples, templates) alongside the skill.
 
 ```
-.gollm/skills/
+.sharur/skills/
   code-review/
     SKILL.md
     checklist.md
@@ -112,7 +112,7 @@ Always explain the reasoning behind each change before making it.
 
 ### Code Review Skill
 
-`.gollm/skills/code-review.md`
+`.sharur/skills/code-review.md`
 
 ```markdown
 ---
@@ -160,7 +160,7 @@ Or attach a file reference:
 ### Structured Skill with Supporting Files
 
 ```
-.gollm/skills/
+.sharur/skills/
   db-migration/
     SKILL.md
     schema-example.sql
@@ -187,7 +187,7 @@ See the example schema at the path listed in this skill's location directory: `s
 
 ### Global Utility Skill
 
-`~/.gollm/skills/explain.md`
+`~/.sharur/skills/explain.md`
 
 ```markdown
 ---
@@ -211,4 +211,4 @@ Structure your explanation as:
 - **Keep skills focused.** One skill = one task type. Compose them with arguments rather than making a single skill do everything.
 - **Use relative file references** — when your skill body references files, note they resolve relative to the skill's directory. The agent is told the skill's location so it can use the `read` tool on supporting files.
 - **Test your skill** by invoking it with `/skill:<name>` in the TUI. The skill's content and its effect on the conversation will be visible in the tool output cards.
-- **Override skills per-project** — place a skill with the same name in `.gollm/skills/` to override the global version for a specific project.
+- **Override skills per-project** — place a skill with the same name in `.sharur/skills/` to override the global version for a specific project.

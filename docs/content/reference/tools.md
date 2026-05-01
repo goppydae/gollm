@@ -7,7 +7,7 @@ title: "tools"
 # tools
 
 ```go
-import "github.com/goppydae/gollm/internal/tools"
+import "github.com/goppydae/sharur/internal/tools"
 ```
 
 Package tools provides the universal tool interface and registry.

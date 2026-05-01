@@ -1,25 +1,25 @@
 ---
-title: Gollm
-description: gollm developer documentation
+title: Sharur
+description: sharur developer documentation
 ---
 
 **Primitives, not features. Local-first. Extensible.**
 
-`gollm` is a powerful, local-first agentic harness designed for developers who want a flexible and reliable assistant that runs on their own hardware. It prioritizes local LLMs (via Ollama and llama.cpp) but adapts seamlessly to cloud providers like OpenAI, Anthropic, and Google Gemini.
+`sharur` is a powerful, local-first agentic harness designed for developers who want a flexible and reliable assistant that runs on their own hardware. It prioritizes local LLMs (via Ollama and llama.cpp) but adapts seamlessly to cloud providers like OpenAI, Anthropic, and Google Gemini.
 
-> A Golem is designed to be a tireless servant to its creator. Brought to life through ritual, created entirely from inanimate matter. It performs physical labor or provides protection.
+> Sharur, smasher of thousands! The weapon of Ninurta, acting as his counselor and scout - flies ahead, assesses, reports back, then executes.
 
 ---
 
 <div style="text-align: center">
-<a href="https://github.com/goppydae/gollm/actions/workflows/ci.yml"><img src="https://github.com/goppydae/gollm/actions/workflows/ci.yml/badge.svg" alt="CI" style="display:inline;vertical-align:bottom;margin:0"></a>
-<a href="https://codecov.io/gh/goppydae/gollm"><img src="https://codecov.io/gh/goppydae/gollm/branch/main/graph/badge.svg" alt="Coverage" style="display:inline;vertical-align:bottom;margin:0"></a>
-<a href="https://pkg.go.dev/github.com/goppydae/gollm"><img src="https://pkg.go.dev/badge/github.com/goppydae/gollm.svg" alt="Go Reference" style="display:inline;vertical-align:bottom;margin:0"></a>
-<a href="https://goreportcard.com/report/github.com/goppydae/gollm"><img src="https://goreportcard.com/badge/github.com/goppydae/gollm" alt="Go Report Card" style="display:inline;vertical-align:bottom;margin:0"></a>
+<a href="https://github.com/goppydae/sharur/actions/workflows/ci.yml"><img src="https://github.com/goppydae/sharur/actions/workflows/ci.yml/badge.svg" alt="CI" style="display:inline;vertical-align:bottom;margin:0"></a>
+<a href="https://codecov.io/gh/goppydae/sharur"><img src="https://codecov.io/gh/goppydae/sharur/branch/main/graph/badge.svg" alt="Coverage" style="display:inline;vertical-align:bottom;margin:0"></a>
+<a href="https://pkg.go.dev/github.com/goppydae/sharur"><img src="https://pkg.go.dev/badge/github.com/goppydae/sharur.svg" alt="Go Reference" style="display:inline;vertical-align:bottom;margin:0"></a>
+<a href="https://goreportcard.com/report/github.com/goppydae/sharur"><img src="https://goreportcard.com/badge/github.com/goppydae/sharur" alt="Go Report Card" style="display:inline;vertical-align:bottom;margin:0"></a>
 <br>
-<a href="https://github.com/goppydae/gollm/releases/latest"><img src="https://img.shields.io/github/v/release/goppydae/gollm" alt="Latest Release" style="display:inline;vertical-align:bottom;margin:0"></a>
+<a href="https://github.com/goppydae/sharur/releases/latest"><img src="https://img.shields.io/github/v/release/goppydae/sharur" alt="Latest Release" style="display:inline;vertical-align:bottom;margin:0"></a>
 <a href="https://go.dev/dl/"><img src="https://img.shields.io/badge/go-1.26.2+-blue" alt="Go Version" style="display:inline;vertical-align:bottom;margin:0"></a>
-<a href="https://github.com/goppydae/gollm/blob/main/LICENSE"><img src="https://img.shields.io/github/license/goppydae/gollm" alt="License" style="display:inline;vertical-align:bottom;margin:0"></a>
+<a href="https://github.com/goppydae/sharur/blob/main/LICENSE"><img src="https://img.shields.io/github/license/goppydae/sharur" alt="License" style="display:inline;vertical-align:bottom;margin:0"></a>
 </div>
 
 ---
@@ -48,23 +48,23 @@ description: gollm developer documentation
 nix develop
 
 # Build binary with Go
-go build -o glm ./cmd/glm
+go build -o shr ./cmd/shr
 
 # Or install globally
-go install ./cmd/glm
+go install ./cmd/shr
 ```
 
 ### Quick Start
 
 ```bash
 # Launch the interactive TUI
-glm
+shr
 
 # One-shot answer (JSONL output)
-glm --mode json "What is the best way to structure a Go project?"
+shr --mode json "What is the best way to structure a Go project?"
 
 # Resume the most recent session
-glm --continue
+shr --continue
 ```
 
 ---

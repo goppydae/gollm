@@ -5,12 +5,12 @@ description: config.json schema, layering, and CLI flag reference
 categories: [cli, configuration]
 ---
 
-`gollm` uses layered JSON configuration. Project-level settings override global defaults.
+`sharur` uses layered JSON configuration. Project-level settings override global defaults.
 
 | Path | Scope |
 |---|---|
-| `~/.gollm/config.json` | Global defaults — applies to all projects |
-| `.gollm/config.json` | Project-level overrides — applies in this directory |
+| `~/.sharur/config.json` | Global defaults — applies to all projects |
+| `.sharur/config.json` | Project-level overrides — applies in this directory |
 
 ---
 
@@ -43,7 +43,7 @@ API keys can also be set via environment variables — env vars take priority ov
 
 ## Context Files
 
-`gollm` auto-discovers `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and `.context.md` in your project root and parent directories and injects them into the system prompt. Outermost files take precedence (parent directory wins over project root).
+`sharur` auto-discovers `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and `.context.md` in your project root and parent directories and injects them into the system prompt. Outermost files take precedence (parent directory wins over project root).
 
 Disable with `--no-context-files`.
 

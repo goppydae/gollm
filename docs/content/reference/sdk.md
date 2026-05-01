@@ -7,10 +7,10 @@ title: "sdk"
 # sdk
 
 ```go
-import "github.com/goppydae/gollm/sdk"
+import "github.com/goppydae/sharur/sdk"
 ```
 
-Package sdk provides the public Go SDK for embedding gollm agents in your own applications.
+Package sdk provides the public Go SDK for embedding sharur agents in your own applications.
 
 Example:
 

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/goppydae/gollm/internal/types"
+	"github.com/goppydae/sharur/internal/types"
 )
 
 // newTestManager returns a Manager whose data lives in t.TempDir() so each

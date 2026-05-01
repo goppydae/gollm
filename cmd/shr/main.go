@@ -11,19 +11,19 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/goppydae/gollm/extensions"
-	"github.com/goppydae/gollm/internal/agent"
-	"github.com/goppydae/gollm/internal/config"
-	"github.com/goppydae/gollm/internal/contextfiles"
-	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
-	"github.com/goppydae/gollm/internal/llm"
-	"github.com/goppydae/gollm/internal/modes"
-	"github.com/goppydae/gollm/internal/modes/interactive"
-	"github.com/goppydae/gollm/internal/prompts"
-	"github.com/goppydae/gollm/internal/service"
-	"github.com/goppydae/gollm/internal/session"
-	"github.com/goppydae/gollm/internal/skills"
-	"github.com/goppydae/gollm/internal/themes"
+	"github.com/goppydae/sharur/extensions"
+	"github.com/goppydae/sharur/internal/agent"
+	"github.com/goppydae/sharur/internal/config"
+	"github.com/goppydae/sharur/internal/contextfiles"
+	pb "github.com/goppydae/sharur/internal/gen/sharur/v1"
+	"github.com/goppydae/sharur/internal/llm"
+	"github.com/goppydae/sharur/internal/modes"
+	"github.com/goppydae/sharur/internal/modes/interactive"
+	"github.com/goppydae/sharur/internal/prompts"
+	"github.com/goppydae/sharur/internal/service"
+	"github.com/goppydae/sharur/internal/session"
+	"github.com/goppydae/sharur/internal/skills"
+	"github.com/goppydae/sharur/internal/themes"
 )
 
 var version = "dev"
@@ -85,9 +85,9 @@ func rootCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "glm [flags] [prompt...]",
-		Short: "glm — local-first AI coding agent",
-		Long: `gollm is a local-first AI agent with several modes:
+		Use:   "shr [flags] [prompt...]",
+		Short: "shr — local-first AI coding agent",
+		Long: `sharur is a local-first AI agent with several modes:
   --mode tui     Interactive bubbletea TUI (default)
   --mode json    One-shot mode with JSONL output
   --mode grpc    gRPC server (multi-session, default addr :50051)`,
@@ -101,7 +101,7 @@ func rootCmd() *cobra.Command {
 
 			// --version
 			if showVersion {
-				fmt.Printf("gollm version %s\n", version)
+				fmt.Printf("sharur version %s\n", version)
 				return nil
 			}
 

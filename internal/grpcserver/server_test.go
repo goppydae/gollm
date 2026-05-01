@@ -12,12 +12,12 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 
-	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
-	"github.com/goppydae/gollm/internal/grpcserver"
-	"github.com/goppydae/gollm/internal/llm"
-	"github.com/goppydae/gollm/internal/session"
-	"github.com/goppydae/gollm/internal/tools"
-	"github.com/goppydae/gollm/internal/types"
+	pb "github.com/goppydae/sharur/internal/gen/sharur/v1"
+	"github.com/goppydae/sharur/internal/grpcserver"
+	"github.com/goppydae/sharur/internal/llm"
+	"github.com/goppydae/sharur/internal/session"
+	"github.com/goppydae/sharur/internal/tools"
+	"github.com/goppydae/sharur/internal/types"
 )
 
 // ── Fakes ────────────────────────────────────────────────────────────────────

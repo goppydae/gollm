@@ -1,18 +1,18 @@
-# gollm — local-first AI coding agent
+# Sharur — local-first AI coding agent
 
 **Primitives, not features. Local-first. Extensible.**
 
-`gollm` is a powerful, local-first AI agentic harness designed for developers who want a flexible and reliable assistant that runs on their own hardware. It prioritizes local LLMs (via Ollama and llama.cpp) but adapts seamlessly to cloud providers like OpenAI, Anthropic, and Google Gemini.
+`Sharur` is a powerful, local-first AI agentic harness designed for developers who want a flexible and reliable assistant that runs on their own hardware. It prioritizes local LLMs (via Ollama and llama.cpp) but adapts seamlessly to cloud providers like OpenAI, Anthropic, and Google Gemini.
 
-> A Golem is designed to be a tireless servant to its creator. Brought to life through ritual, created entirely from inanimate matter. It performs physical labor or provides protection.
+> Sharur, smasher of thousands! The weapon of Ninurta, acting as his counselor and scout - flies ahead, assesses, reports back, then executes.
 
 ---
 
 <div align="center">
 
-[![CI](https://github.com/goppydae/gollm/actions/workflows/ci.yml/badge.svg)](https://github.com/goppydae/gollm/actions/workflows/ci.yml) [![Coverage](https://codecov.io/gh/goppydae/gollm/branch/main/graph/badge.svg)](https://codecov.io/gh/goppydae/gollm) [![Go Reference](https://pkg.go.dev/badge/github.com/goppydae/gollm.svg)](https://pkg.go.dev/github.com/goppydae/gollm) [![Go Report Card](https://goreportcard.com/badge/github.com/goppydae/gollm)](https://goreportcard.com/report/github.com/goppydae/gollm)
+[![CI](https://github.com/goppydae/sharur/actions/workflows/ci.yml/badge.svg)](https://github.com/goppydae/sharur/actions/workflows/ci.yml) [![Coverage](https://codecov.io/gh/goppydae/sharur/branch/main/graph/badge.svg)](https://codecov.io/gh/goppydae/sharur) [![Go Reference](https://pkg.go.dev/badge/github.com/goppydae/sharur.svg)](https://pkg.go.dev/github.com/goppydae/sharur) [![Go Report Card](https://goreportcard.com/badge/github.com/goppydae/sharur)](https://goreportcard.com/report/github.com/goppydae/sharur)
 
-[![Latest Release](https://img.shields.io/github/v/release/goppydae/gollm)](https://github.com/goppydae/gollm/releases/latest) [![Go Version](https://img.shields.io/badge/go-1.26.2+-blue)](https://go.dev/dl/) [![License](https://img.shields.io/github/license/goppydae/gollm)](https://github.com/goppydae/gollm/blob/main/LICENSE)
+[![Latest Release](https://img.shields.io/github/v/release/goppydae/sharur)](https://github.com/goppydae/sharur/releases/latest) [![Go Version](https://img.shields.io/badge/go-1.26.2+-blue)](https://go.dev/dl/) [![License](https://img.shields.io/github/license/goppydae/sharur)](https://github.com/goppydae/sharur/blob/main/LICENSE)
 
 </div>
 
@@ -150,7 +150,7 @@ glm --mode grpc --grpc-addr :9090
 
 The server responds to SIGINT/SIGTERM with a graceful shutdown: in-flight turns are allowed to finish (30 s timeout), all sessions are flushed to disk, then the listener closes.
 
-Proto definition and generated Go stubs live in `proto/gollm/v1/` and `internal/gen/gollm/v1/`. All UI modes (TUI, CLI) now communicate with the core via this Protobuf boundary using an in-process transport for maximum performance. Regenerate with `mage generate`.
+Proto definition and generated Go stubs live in `proto/sharur/v1/` and `internal/gen/sharur/v1/`. All UI modes (TUI, CLI) now communicate with the core via this Protobuf boundary using an in-process transport for maximum performance. Regenerate with `mage generate`.
 
 ---
 
@@ -175,7 +175,7 @@ Proto definition and generated Go stubs live in `proto/gollm/v1/` and `internal/
 Sessions are stored as JSONL files in a project-aware directory structure:
 
 ```
-~/.gollm/sessions/
+~/.sharur/sessions/
   --Users-alice-Projects-myapp--/
     2026-04-23T07-06-54_{uuid}.jsonl
     2026-04-23T09-12-11_{uuid}.jsonl
@@ -189,19 +189,19 @@ Each session tracks full message history, model, provider, thinking level, syste
 
 ### Skills
 
-Drop `.md` files into `.gollm/skills/` or `~/.gollm/skills/` to add reusable instructions or personality. Invoke with `/skill:<name>`.
+Drop `.md` files into `.sharur/skills/` or `~/.sharur/skills/` to add reusable instructions or personality. Invoke with `/skill:<name>`.
 
 ### Prompt Templates
 
-Store reusable prompts in `.gollm/prompts/` or `~/.gollm/prompts/`. Expand into the editor with `/prompt:<name>`.
+Store reusable prompts in `.sharur/prompts/` or `~/.sharur/prompts/`. Expand into the editor with `/prompt:<name>`.
 
 ### Context Files
 
-`gollm` auto-discovers `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and `.context.md` in your project root or parent directories and injects them into the system prompt. Outermost files take precedence.
+`sharur` auto-discovers `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and `.context.md` in your project root or parent directories and injects them into the system prompt. Outermost files take precedence.
 
 ### gRPC Extensions
 
-`gollm` supports out-of-process extensions over gRPC. Extensions run as separate binaries; gollm manages their lifecycle and passes a Unix socket path via `GOLLM_SOCKET_PATH` for the extension to listen on.
+`sharur` supports out-of-process extensions over gRPC. Extensions run as separate binaries; sharur manages their lifecycle and passes a Unix socket path via `SHARUR_SOCKET_PATH` for the extension to listen on.
 
 Load an extension binary with the `--extension` flag (repeatable):
 
@@ -211,12 +211,12 @@ glm --extension /path/to/my-extension "Your prompt here"
 
 #### Writing an Extension
 
-Import only `github.com/goppydae/gollm/extensions` — no internal packages required.
+Import only `github.com/goppydae/sharur/extensions` — no internal packages required.
 
 ```go
 package main
 
-import "github.com/goppydae/gollm/extensions"
+import "github.com/goppydae/sharur/extensions"
 
 type myPlugin struct {
     extensions.NoopPlugin // provides no-op defaults for all hooks
@@ -286,17 +286,17 @@ Key behaviors:
 
 ```bash
 # Build
-cd examples/sandbox && go build -o gollm-sandbox .
+cd examples/sandbox && go build -o sharur-sandbox .
 
 # Use — all file access outside $PWD is blocked
-glm --extension ./gollm-sandbox "Refactor main.go"
+glm --extension ./sharur-sandbox "Refactor main.go"
 ```
 
 ---
 
 ## Security & Safety
 
-`gollm` is designed to be a safe and predictable assistant:
+`sharur` is designed to be a safe and predictable assistant:
 
 - **Dry Run Mode** — Use `--dry-run` to see what the agent *would* do without modifying files or running shell commands.
 - **Bash Deny Patterns** — The `Bash` tool accepts a `DenyPatterns` list; matching commands are rejected before execution.
@@ -308,12 +308,12 @@ glm --extension ./gollm-sandbox "Refactor main.go"
 
 ## Configuration
 
-`gollm` uses layered JSON configuration:
+`sharur` uses layered JSON configuration:
 
 | Path | Scope |
 |---|---|
-| `~/.gollm/config.json` | Global defaults |
-| `.gollm/config.json` | Project-level overrides |
+| `~/.sharur/config.json` | Global defaults |
+| `.sharur/config.json` | Project-level overrides |
 
 ```jsonc
 {
@@ -396,10 +396,10 @@ Output / Info
 
 ## Go SDK
 
-Embed a `gollm` agent directly in your Go application:
+Embed a `sharur` agent directly in your Go application:
 
 ```go
-import "github.com/goppydae/gollm/sdk"
+import "github.com/goppydae/sharur/sdk"
 
 ag, err := sdk.NewAgent(sdk.Config{
     Provider: "ollama",
@@ -439,7 +439,7 @@ ag.SetExtensions([]sdk.Extension{&loggingExt{NoopExtension: agent.NoopExtension{
 
 ## Development
 
-`gollm` uses [Mage](https://magefile.org/) as its build system and [Nix](https://nixos.org/) for environment management.
+`sharur` uses [Mage](https://magefile.org/) as its build system and [Nix](https://nixos.org/) for environment management.
 
 ```bash
 # Enter the Nix dev shell (includes Go, buf, Mage, etc.)

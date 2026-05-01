@@ -10,10 +10,10 @@ gRPC mode starts a persistent `AgentService` server. Each connecting client supp
 
 ```bash
 # Start on the default port
-glm --mode grpc
+shr --mode grpc
 
 # Use a custom address
-glm --mode grpc --grpc-addr :9090
+shr --mode grpc --grpc-addr :9090
 ```
 
 The server responds to `SIGINT`/`SIGTERM` with a graceful shutdown: in-flight turns are allowed to finish (30 s timeout), all sessions are flushed to disk, then the listener closes.
@@ -22,7 +22,7 @@ The server responds to `SIGINT`/`SIGTERM` with a graceful shutdown: in-flight tu
 
 ## Proto Definition
 
-The service is defined in `proto/gollm/v1/agent.proto`. Generated Go stubs live in `internal/gen/gollm/v1/`. Regenerate with `mage generate`.
+The service is defined in `proto/sharur/v1/agent.proto`. Generated Go stubs live in `internal/gen/sharur/v1/`. Regenerate with `mage generate`.
 
 Key RPCs:
 

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/goppydae/gollm/internal/types"
+	"github.com/goppydae/sharur/internal/types"
 )
 
 func TestBuildTree(t *testing.T) {

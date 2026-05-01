@@ -62,7 +62,7 @@ type Extension interface {
 }
 ```
 
-All types are re-exported from `sdk` so callers only need to import `github.com/goppydae/gollm/sdk`.
+All types are re-exported from `sdk` so callers only need to import `github.com/goppydae/sharur/sdk`.
 
 ---
 

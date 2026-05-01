@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/goppydae/gollm/internal/llm"
-	"github.com/goppydae/gollm/internal/tools"
+	"github.com/goppydae/sharur/internal/llm"
+	"github.com/goppydae/sharur/internal/tools"
 )
 
 type mockProvider struct {

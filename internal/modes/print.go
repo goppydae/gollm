@@ -10,9 +10,9 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 
-	"github.com/goppydae/gollm/internal/config"
-	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
-	"github.com/goppydae/gollm/internal/modes/interactive"
+	"github.com/goppydae/sharur/internal/config"
+	pb "github.com/goppydae/sharur/internal/gen/sharur/v1"
+	"github.com/goppydae/sharur/internal/modes/interactive"
 )
 
 // Handler is the interface for mode implementations.

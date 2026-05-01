@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package gollm.v1;
+package sharur.v1;
 
-option go_package = "github.com/goppydae/gollm/internal/gen/gollm/v1;gollmv1";
+option go_package = "github.com/goppydae/sharur/internal/gen/sharur/v1;sharurv1";
 
-// AgentService is the gollm gRPC interface.
+// AgentService is the sharur gRPC interface.
 // Each RPC carries a session_id identifying which agent instance to target.
 // Sessions are auto-created on first use.
 service AgentService {

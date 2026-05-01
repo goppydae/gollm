@@ -60,12 +60,12 @@ func TestLoad(t *testing.T) {
 
 	// Create a mock home directory
 	mockHome := filepath.Join(tmpDir, "home")
-	if err := os.MkdirAll(filepath.Join(mockHome, ".gollm"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(mockHome, ".sharur"), 0755); err != nil {
 		t.Fatal(err)
 	}
 
 	// Write a global config
-	globalConfigPath := filepath.Join(mockHome, ".gollm", "config.json")
+	globalConfigPath := filepath.Join(mockHome, ".sharur", "config.json")
 	globalConfig := `{"defaultModel": "global-model", "defaultProvider": "openai"}`
 	if err := os.WriteFile(globalConfigPath, []byte(globalConfig), 0644); err != nil {
 		t.Fatal(err)

@@ -13,7 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
 	lipgloss "charm.land/lipgloss/v2"
-	"github.com/goppydae/gollm/internal/session"
+	"github.com/goppydae/sharur/internal/session"
 )
 
 // modalKind identifies the type of modal overlay.

@@ -3,7 +3,7 @@ title: CLI
 weight: 10
 ---
 
-`glm` is the gollm CLI binary. It supports three runtime modes and a rich flag surface for model selection, session management, tools, and extensions.
+`shr` is the sharur CLI binary. It supports three runtime modes and a rich flag surface for model selection, session management, tools, and extensions.
 
 ## Runtime Modes
 
@@ -17,13 +17,13 @@ weight: 10
 
 ```bash
 # Launch the interactive TUI
-glm
+shr
 
 # One-shot answer (JSONL output)
-glm --mode json "What is the best way to structure a Go project?"
+shr --mode json "What is the best way to structure a Go project?"
 
 # Resume the most recent session
-glm --continue
+shr --continue
 ```
 
 See the sub-pages for full keybinding and slash command references, JSON event schema, gRPC proto overview, provider setup, and the full configuration schema.

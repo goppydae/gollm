@@ -3,7 +3,7 @@ package interactive
 import (
 	"context"
 
-	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
+	pb "github.com/goppydae/sharur/internal/gen/sharur/v1"
 	"google.golang.org/grpc"
 )
 

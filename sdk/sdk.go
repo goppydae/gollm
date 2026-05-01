@@ -1,4 +1,4 @@
-// Package sdk provides the public Go SDK for embedding gollm agents in your own applications.
+// Package sdk provides the public Go SDK for embedding sharur agents in your own applications.
 //
 // Example:
 //
@@ -24,10 +24,10 @@
 package sdk
 
 import (
-	"github.com/goppydae/gollm/internal/agent"
-	"github.com/goppydae/gollm/internal/llm"
-	"github.com/goppydae/gollm/internal/tools"
-	"github.com/goppydae/gollm/internal/types"
+	"github.com/goppydae/sharur/internal/agent"
+	"github.com/goppydae/sharur/internal/llm"
+	"github.com/goppydae/sharur/internal/tools"
+	"github.com/goppydae/sharur/internal/types"
 )
 
 // Re-export core types so consumers import only this package.

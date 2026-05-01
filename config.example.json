@@ -13,8 +13,8 @@
     "keepRecentTokens": 8192
   },
 
-  "sessionDir": "~/.gollm/sessions",
-  "extensions": ["~/.gollm/extensions"],
+  "sessionDir": "~/.sharur/sessions",
+  "extensions": ["~/.sharur/extensions"],
   "pythonPath": "python3",
 
   "skillPaths": [],
@@ -43,7 +43,7 @@
   "openAIBaseURL": "https://api.openai.com/v1",
 
   "_apiKeyNote": "Prefer env vars over config file keys to avoid credential exposure in dotfile repos.",
-  "_envVars": "GOLLM_ANTHROPIC_API_KEY, GOLLM_OPENAI_API_KEY, GOLLM_GOOGLE_API_KEY",
+  "_envVars": "SHARUR_ANTHROPIC_API_KEY, SHARUR_OPENAI_API_KEY, SHARUR_GOOGLE_API_KEY",
   "openAIApiKey": "",
   "anthropicApiKey": "",
   "anthropicApiVersion": "",

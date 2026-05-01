@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 
-	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
+	pb "github.com/goppydae/sharur/internal/gen/sharur/v1"
 )
 
 // NewInProcessClient creates a pb.AgentServiceClient that talks to an in-memory Service instance.

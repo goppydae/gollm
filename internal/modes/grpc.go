@@ -10,8 +10,8 @@ import (
 
 	"google.golang.org/grpc"
 
-	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
-	"github.com/goppydae/gollm/internal/service"
+	pb "github.com/goppydae/sharur/internal/gen/sharur/v1"
+	"github.com/goppydae/sharur/internal/service"
 )
 
 // GRPCHandler starts a gRPC server exposing the AgentService.
@@ -39,7 +39,7 @@ func (h *GRPCHandler) Run(_ []string) error {
 
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- gs.Serve(lis) }()
-	fmt.Printf("gollm gRPC server listening on %s\n", h.Addr)
+	fmt.Printf("sharur gRPC server listening on %s\n", h.Addr)
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

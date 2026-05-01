@@ -1,17 +1,17 @@
 ---
 title: Internals
 weight: 20
-description: Architecture overview of gollm's components and data flow
+description: Architecture overview of sharur's components and data flow
 ---
 
-This section describes the high-level architecture of `gollm`: how its components are organized, how data flows through the system, and how the key abstractions relate to each other.
+This section describes the high-level architecture of `sharur`: how its components are organized, how data flows through the system, and how the key abstractions relate to each other.
 
 ---
 
 ## Directory Structure
 
 ```
-gollm/
+sharur/
 │   ├── internal/
 │   │   ├── service/        # Central AgentService implementation + in-process client
 │   │   ├── gen/            # Generated Protobuf stubs (pb.AgentServiceClient/Server)
@@ -30,8 +30,8 @@ gollm/
 │   │   ├── skills/         # Skill discovery (Markdown files → slash commands)
 │   │   ├── prompts/        # Prompt template discovery
 │   │   └── contextfiles/   # Auto-discovered context file injection (AGENTS.md, etc.)
-│   ├── cmd/                # Entry points (glm)
-│   ├── proto/              # Protobuf definitions (gollm/v1/agent.proto)
+│   ├── cmd/                # Entry points (shr)
+│   ├── proto/              # Protobuf definitions (sharur/v1/agent.proto)
 │   ├── extensions/         # gRPC extension loader + proto definitions
 │   └── sdk/                # Public Go SDK
 ```

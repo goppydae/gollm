@@ -1,5 +1,5 @@
 {
-  description = "gollm — Go agent development environment";
+  description = "sharur — Go agent development environment";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";

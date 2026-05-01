@@ -8,13 +8,13 @@ categories: [cli]
 JSON mode runs a single prompt and streams the agent's events as line-delimited JSON (JSONL) to stdout. It is designed for shell pipelines and tooling integration.
 
 ```bash
-glm --mode json "What is the best way to structure a Go project?"
+shr --mode json "What is the best way to structure a Go project?"
 
 # Pipe stdin as context
-cat main.go | glm --mode json "Refactor this to use interfaces"
+cat main.go | shr --mode json "Refactor this to use interfaces"
 
 # Specify a model
-glm --mode json "Summarize the last 10 git commits" --model anthropic/claude-opus-4-5
+shr --mode json "Summarize the last 10 git commits" --model anthropic/claude-opus-4-5
 ```
 
 ---
@@ -37,12 +37,12 @@ Each line is the protobuf JSON encoding of an `AgentEvent`. Event types mirror t
 
 ```bash
 # Capture only the text deltas
-glm --mode json "Explain Go interfaces" \
+shr --mode json "Explain Go interfaces" \
   | jq -r 'select(.type == "EVENT_TEXT_DELTA") | .content'
 
 # Run without saving the session
-glm --mode json --no-session "Quick one-off question"
+shr --mode json --no-session "Quick one-off question"
 
 # Dry-run to see what tools would be called
-glm --mode json --dry-run "Delete all .tmp files in the current directory"
+shr --mode json --dry-run "Delete all .tmp files in the current directory"
 ```

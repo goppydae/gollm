@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/goppydae/gollm/internal/config"
-	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
-	"github.com/goppydae/gollm/internal/prompts"
-	"github.com/goppydae/gollm/internal/session"
-	"github.com/goppydae/gollm/internal/skills"
-	"github.com/goppydae/gollm/internal/tools"
-	"github.com/goppydae/gollm/internal/types"
+	"github.com/goppydae/sharur/internal/config"
+	pb "github.com/goppydae/sharur/internal/gen/sharur/v1"
+	"github.com/goppydae/sharur/internal/prompts"
+	"github.com/goppydae/sharur/internal/session"
+	"github.com/goppydae/sharur/internal/skills"
+	"github.com/goppydae/sharur/internal/tools"
+	"github.com/goppydae/sharur/internal/types"
 )
 
 // slashCommand represents a parsed slash command.

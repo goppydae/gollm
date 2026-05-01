@@ -13,8 +13,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	proto "github.com/goppydae/gollm/extensions/gen"
-	"github.com/goppydae/gollm/internal/agent"
+	proto "github.com/goppydae/sharur/extensions/gen"
+	"github.com/goppydae/sharur/internal/agent"
 )
 
 // extProc tracks a running extension subprocess and its gRPC connection.
@@ -133,7 +133,7 @@ func (l *Loader) Cleanup() {
 
 func (l *Loader) launchExtension(path string) (agent.Extension, error) {
 	socketPath := filepath.Join(os.TempDir(),
-		fmt.Sprintf("gollm-ext-%d-%d.sock", os.Getpid(), len(l.procs)))
+		fmt.Sprintf("sharur-ext-%d-%d.sock", os.Getpid(), len(l.procs)))
 
 	var cmd *exec.Cmd
 	if filepath.Ext(path) == ".py" {
@@ -141,7 +141,7 @@ func (l *Loader) launchExtension(path string) (agent.Extension, error) {
 	} else {
 		cmd = exec.Command(path) // #nosec G204 — path is a discovered file from configured extension dirs
 	}
-	cmd.Env = append(os.Environ(), "GOLLM_SOCKET_PATH="+socketPath)
+	cmd.Env = append(os.Environ(), "SHARUR_SOCKET_PATH="+socketPath)
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Start(); err != nil {

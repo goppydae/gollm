@@ -105,7 +105,7 @@ Each adapter lives in `internal/llm/` and translates the provider's wire format 
 
 ### Ollama
 
-The Ollama adapter uses the `/api/chat` endpoint with streaming enabled. Context window defaults to 4096 when not reported by the server. Thinking is supported on models that emit `<think>` tokens (e.g. `qwq`, `deepseek-r1`) — `gollm` surfaces these as `EventThinkingDelta` events by detecting the tag boundaries in the stream.
+The Ollama adapter uses the `/api/chat` endpoint with streaming enabled. Context window defaults to 4096 when not reported by the server. Thinking is supported on models that emit `<think>` tokens (e.g. `qwq`, `deepseek-r1`) — `sharur` surfaces these as `EventThinkingDelta` events by detecting the tag boundaries in the stream.
 
 ### llama.cpp
 

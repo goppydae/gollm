@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/goppydae/gollm/internal/types"
+	"github.com/goppydae/sharur/internal/types"
 )
 
 // message is an alias so we can use types.Message in JSONL without an import cycle.
@@ -104,7 +104,7 @@ type Manager struct {
 func NewManager(baseDir string) *Manager {
 	if baseDir == "" {
 		home, _ := os.UserHomeDir()
-		baseDir = filepath.Join(home, ".gollm", "sessions")
+		baseDir = filepath.Join(home, ".sharur", "sessions")
 	}
 
 	cwd, err := os.Getwd()

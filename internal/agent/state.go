@@ -2,7 +2,7 @@
 package agent
 
 import (
-	"github.com/goppydae/gollm/internal/types"
+	"github.com/goppydae/sharur/internal/types"
 )
 
 // ThinkingLevel is an alias for types.ThinkingLevel.

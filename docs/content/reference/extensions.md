@@ -7,7 +7,7 @@ title: "extensions"
 # extensions
 
 ```go
-import "github.com/goppydae/gollm/extensions"
+import "github.com/goppydae/sharur/extensions"
 ```
 
 ## Index

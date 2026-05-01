@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
-	"github.com/goppydae/gollm/internal/themes"
+	pb "github.com/goppydae/sharur/internal/gen/sharur/v1"
+	"github.com/goppydae/sharur/internal/themes"
 )
 
 func TestRenderReadToolCall(t *testing.T) {
@@ -208,7 +208,7 @@ func TestRenderFileAttachment(t *testing.T) {
 	m.width = 100
 	m.vp.SetWidth(m.width - borderOffset - chatMargin*2)
 
-	text := "<file path=\"README.md\">\n# gollm\nAn AI agent harness.\n</file>\nExtra text."
+	text := "<file path=\"README.md\">\n# sharur\nAn AI agent harness.\n</file>\nExtra text."
 	entry := historyEntry{
 		role: "user",
 		items: []contentItem{
@@ -225,7 +225,7 @@ func TestRenderFileAttachment(t *testing.T) {
 	if !strings.Contains(res, "Extra text.") {
 		t.Error("Expected extra text in rendered output")
 	}
-	if strings.Contains(res, "# gollm") {
+	if strings.Contains(res, "# sharur") {
 		t.Error("Expected content to be hidden when not expanded")
 	}
 }

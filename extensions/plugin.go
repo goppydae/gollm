@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/goppydae/gollm/internal/agent"
+	"github.com/goppydae/sharur/internal/agent"
 )
 
 // ToolCall describes a tool invocation passed to Plugin hook methods.

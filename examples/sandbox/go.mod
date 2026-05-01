@@ -1,8 +1,8 @@
-module github.com/goppydae/gollm-sandbox-example
+module github.com/goppydae/sharur-sandbox-example
 
 go 1.26.2
 
-require github.com/goppydae/gollm v0.0.0
+require github.com/goppydae/sharur v0.0.0
 
 require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
@@ -25,4 +25,4 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 )
 
-replace github.com/goppydae/gollm => ../..
+replace github.com/goppydae/sharur => ../..

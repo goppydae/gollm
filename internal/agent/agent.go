@@ -12,11 +12,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/goppydae/gollm/internal/events"
-	"github.com/goppydae/gollm/internal/llm"
-	"github.com/goppydae/gollm/internal/session"
-	"github.com/goppydae/gollm/internal/tools"
-	"github.com/goppydae/gollm/internal/types"
+	"github.com/goppydae/sharur/internal/events"
+	"github.com/goppydae/sharur/internal/llm"
+	"github.com/goppydae/sharur/internal/session"
+	"github.com/goppydae/sharur/internal/tools"
+	"github.com/goppydae/sharur/internal/types"
 )
 
 // Event represents an agent lifecycle event.
@@ -63,11 +63,11 @@ const (
 
 // summarySentinel is prepended to every generated summary so detection is reliable
 // regardless of the LLM's exact phrasing of section headers.
-const summarySentinel = "<!-- gollm-summary -->\n"
+const summarySentinel = "<!-- sharur-summary -->\n"
 
 const SUMMARIZATION_PROMPT = `The messages above are a conversation to summarize. Create a structured context checkpoint summary that another LLM will use to continue the work.
 
-Start your response with the exact string: <!-- gollm-summary -->
+Start your response with the exact string: <!-- sharur-summary -->
 
 Then use this EXACT format:
 
@@ -102,7 +102,7 @@ Keep each section concise. Preserve exact file paths, function names, and error 
 
 const UPDATE_SUMMARIZATION_PROMPT = `The messages above are NEW conversation messages to incorporate into the existing summary provided in <previous-summary> tags.
 
-Start your response with the exact string: <!-- gollm-summary -->
+Start your response with the exact string: <!-- sharur-summary -->
 
 Update the existing structured summary with new information. RULES:
 - PRESERVE all existing information from the previous summary
@@ -1021,7 +1021,7 @@ func (a *Agent) extractFileContext(messages []Message) (read []string, modified 
 		for _, tc := range m.ToolCalls {
 			var args struct {
 				Path       string `json:"path"`
-				TargetFile string `json:"TargetFile"` // Common in some gollm tools
+				TargetFile string `json:"TargetFile"` // Common in some sharur tools
 				Target     string `json:"target"`     // Common in others
 			}
 			_ = json.Unmarshal(tc.Args, &args)

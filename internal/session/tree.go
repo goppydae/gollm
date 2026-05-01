@@ -299,7 +299,7 @@ func FlattenTree(roots []*TreeNode) []FlatNode {
 			// If this node showed a connector, add a gutter for descendants
 			if showConnector {
 				// Connector is at displayIndent - 1.
-				// We use a simplified version for gollm's FlatNode.
+				// We use a simplified version for sharur's FlatNode.
 				pos := indent - 1
 				if pos >= 0 {
 					childGutters = append(childGutters, GutterInfo{Position: pos, Show: !isLast})

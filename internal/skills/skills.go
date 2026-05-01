@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/goppydae/gollm/internal/config"
+	"github.com/goppydae/sharur/internal/config"
 )
 
 // Skill represents a parsed skill definition.
@@ -22,12 +22,12 @@ type Skill struct {
 func DefaultDirs() []string {
 	home, _ := os.UserHomeDir()
 	dirs := []string{
-		filepath.Join(home, ".gollm", "skills"),
+		filepath.Join(home, ".sharur", "skills"),
 	}
-	if projectGollm := config.FindProjectGollm(); projectGollm != "" {
-		dirs = append(dirs, filepath.Join(projectGollm, "skills"))
+	if projectSharur := config.FindProjectSharur(); projectSharur != "" {
+		dirs = append(dirs, filepath.Join(projectSharur, "skills"))
 	}
-	dirs = append(dirs, ".gollm/skills") // fallback
+	dirs = append(dirs, ".sharur/skills") // fallback
 	return dirs
 }
 

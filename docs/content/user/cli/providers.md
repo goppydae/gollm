@@ -6,7 +6,7 @@ categories: [cli, configuration]
 tags: [providers]
 ---
 
-`gollm` supports five LLM providers. All configuration lives in `config.json` files or environment variables; environment variables take priority over config file values.
+`sharur` supports five LLM providers. All configuration lives in `config.json` files or environment variables; environment variables take priority over config file values.
 
 ---
 
@@ -16,10 +16,10 @@ Models can be specified as `provider/model` shorthand or with separate flags:
 
 ```bash
 # Shorthand: provider inferred from the slash-prefix
-glm --model anthropic/claude-sonnet-4-6
+shr --model anthropic/claude-sonnet-4-6
 
 # Explicit: provider and model as separate flags
-glm --provider anthropic --model claude-sonnet-4-6
+shr --provider anthropic --model claude-sonnet-4-6
 ```
 
 Both forms are equivalent. The shorthand is convenient for one-off overrides; the config file form is better for persistent defaults.
@@ -32,9 +32,9 @@ API keys set via environment variable take priority over values in `config.json`
 
 | Provider | Environment Variable |
 |---|---|
-| Anthropic | `GOLLM_ANTHROPIC_API_KEY` |
-| OpenAI | `GOLLM_OPENAI_API_KEY` |
-| Google | `GOLLM_GOOGLE_API_KEY` |
+| Anthropic | `SHARUR_ANTHROPIC_API_KEY` |
+| OpenAI | `SHARUR_OPENAI_API_KEY` |
+| Google | `SHARUR_GOOGLE_API_KEY` |
 
 Ollama and llama.cpp are local servers and do not use API keys.
 
@@ -45,7 +45,7 @@ Ollama and llama.cpp are local servers and do not use API keys.
 [Ollama](https://ollama.com) runs models locally. It is the default provider.
 
 ```jsonc
-// ~/.gollm/config.json or .gollm/config.json
+// ~/.sharur/config.json or .sharur/config.json
 {
   "defaultProvider": "ollama",
   "defaultModel": "llama3.2",
@@ -56,19 +56,19 @@ Ollama and llama.cpp are local servers and do not use API keys.
 ```bash
 # Pull a model and launch
 ollama pull llama3.2
-glm
+shr
 
 # Use a specific model
-glm --model ollama/llama3.2
+shr --model ollama/llama3.2
 
 # Point at a remote Ollama server
-glm --model llama3.2 --provider ollama
+shr --model llama3.2 --provider ollama
 ```
 
 **Notes:**
 - Default base URL is `http://localhost:11434`. Override with `ollamaBaseURL`.
 - Ollama models support tools and images (vision models).
-- Use `glm --list-models` to see all locally available models.
+- Use `shr --list-models` to see all locally available models.
 - Thinking is supported on models that emit `<think>` tokens (e.g. `qwq`, `deepseek-r1`).
 
 ---
@@ -88,15 +88,15 @@ glm --model llama3.2 --provider ollama
 # Start the llama.cpp server (example)
 ./llama-server -m model.gguf --port 8080
 
-# Connect with gollm
-glm --provider llamacpp --model my-model
+# Connect with sharur
+shr --provider llamacpp --model my-model
 ```
 
 **Notes:**
 - Default base URL is `http://localhost:8080`. Override with `llamaCppBaseURL`.
-- The model name passed to `glm` is forwarded to the server as-is.
+- The model name passed to `shr` is forwarded to the server as-is.
 - Image attachments are not supported.
-- The server's own context window size is used; `gollm` queries `/v1/models` to detect it.
+- The server's own context window size is used; `sharur` queries `/v1/models` to detect it.
 
 ---
 
@@ -113,11 +113,11 @@ glm --provider llamacpp --model my-model
 
 ```bash
 # Via environment variable (recommended)
-export GOLLM_OPENAI_API_KEY=sk-...
-glm --model openai/gpt-4o
+export SHARUR_OPENAI_API_KEY=sk-...
+shr --model openai/gpt-4o
 
 # One-off key override
-glm --provider openai --model gpt-4o --api-key sk-...
+shr --provider openai --model gpt-4o --api-key sk-...
 ```
 
 **OpenAI-compatible endpoints:**
@@ -152,11 +152,11 @@ This works with [vLLM](https://github.com/vllm-project/vllm), [LM Studio](https:
 ```
 
 ```bash
-export GOLLM_ANTHROPIC_API_KEY=sk-ant-...
-glm --model anthropic/claude-sonnet-4-6
+export SHARUR_ANTHROPIC_API_KEY=sk-ant-...
+shr --model anthropic/claude-sonnet-4-6
 
 # Extended thinking (claude-3-7-sonnet and later)
-glm --model anthropic/claude-3-7-sonnet-20250219 --thinking high
+shr --model anthropic/claude-3-7-sonnet-20250219 --thinking high
 ```
 
 **Notes:**
@@ -177,14 +177,14 @@ glm --model anthropic/claude-3-7-sonnet-20250219 --thinking high
 ```
 
 ```bash
-export GOLLM_GOOGLE_API_KEY=AIza...
-glm --model google/gemini-2.0-flash
+export SHARUR_GOOGLE_API_KEY=AIza...
+shr --model google/gemini-2.0-flash
 ```
 
 **Notes:**
 - Gemini 1.5 Pro and later have a 1M+ token context window.
 - Supports tools and vision (images).
-- Use `glm --list-models` to see available Gemini models.
+- Use `shr --list-models` to see available Gemini models.
 
 ---
 
@@ -194,19 +194,19 @@ All five providers implement model listing. Use `--list-models` to query the act
 
 ```bash
 # List Ollama models
-glm --list-models
+shr --list-models
 
 # List models from a specific provider
-glm --provider anthropic --list-models
+shr --provider anthropic --list-models
 
 # Filter results
-glm --provider openai --list-models gpt-4
+shr --provider openai --list-models gpt-4
 ```
 
 The output is a plain list of model names, suitable for piping:
 
 ```bash
-glm --list-models | fzf | xargs -I{} glm --model {}
+shr --list-models | fzf | xargs -I{} shr --model {}
 ```
 
 ---

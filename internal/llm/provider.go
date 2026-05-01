@@ -4,7 +4,7 @@ package llm
 import (
 	"context"
 	"encoding/json"
-	"github.com/goppydae/gollm/internal/types"
+	"github.com/goppydae/sharur/internal/types"
 	"time"
 )
 
@@ -51,7 +51,7 @@ func DefaultStreamOptions() StreamOptions {
 }
 
 // ProviderInfo describes a provider's capabilities.
-// Must stay in sync with ProviderInfo in proto/gollm/v1/agent.proto;
+// Must stay in sync with ProviderInfo in proto/sharur/v1/agent.proto;
 // add fields to both when extending.
 type ProviderInfo struct {
 	Name          string

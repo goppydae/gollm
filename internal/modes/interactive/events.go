@@ -8,7 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
+	pb "github.com/goppydae/sharur/internal/gen/sharur/v1"
 )
 
 func (m *model) handleAgentEvent(ev *pb.AgentEvent) tea.Cmd {
@@ -256,7 +256,7 @@ func (m *model) applyHistorySync(msgs []*pb.ConversationMessage) {
 	m.history = make([]historyEntry, 0, len(msgs)+len(trailingMeta))
 
 	for _, msg := range msgs {
-		if strings.HasPrefix(msg.Content, "<!-- gollm-summary -->") || strings.HasPrefix(msg.Content, "**Turn Context (split turn):**") {
+		if strings.HasPrefix(msg.Content, "<!-- sharur-summary -->") || strings.HasPrefix(msg.Content, "**Turn Context (split turn):**") {
 			continue
 		}
 		if msg.Role == "tool" {

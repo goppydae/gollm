@@ -5,7 +5,7 @@ description: Mage build targets, Nix dev shell, and CI/CD pipelines
 categories: [internals]
 ---
 
-`gollm` uses a combination of **Mage** and **GitHub Actions** for CI/CD.
+`sharur` uses a combination of **Mage** and **GitHub Actions** for CI/CD.
 
 ---
 
@@ -19,7 +19,7 @@ The project version is maintained in a `VERSION` file in the repository root. Du
 
 | Target | Description |
 |---|---|
-| `Build` | Compile `glm` for the current platform with version injection |
+| `Build` | Compile `shr` for the current platform with version injection |
 | `Test` | Run all unit tests with coverage |
 | `Vet` | Static analysis with `go vet` |
 | `Lint` | Run `golangci-lint` |

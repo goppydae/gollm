@@ -6,23 +6,23 @@ categories: [internals]
 tags: [agents]
 ---
 
-`gollm` follows a **Strict Protobuf Internal Architecture**. Instead of UI modes calling Go functions directly, all interfaces are treated as clients of a central `AgentService`.
+`sharur` follows a **Strict Protobuf Internal Architecture**. Instead of UI modes calling Go functions directly, all interfaces are treated as clients of a central `AgentService`.
 
 ---
 
 ## Protobuf Boundary
 
-The interface between the UI and the core is defined in `proto/gollm/v1/agent.proto`. This boundary ensures:
+The interface between the UI and the core is defined in `proto/sharur/v1/agent.proto`. This boundary ensures:
 
 - **Consistency**: All modes (TUI, CLI, JSON, Remote gRPC) use the exact same code paths and logic.
 - **Decoupling**: UI logic is completely isolated from agent state, session persistence, and provider adapters.
-- **Interoperability**: Any gRPC-capable client can interact with a `gollm` service.
+- **Interoperability**: Any gRPC-capable client can interact with a `sharur` service.
 
 ---
 
 ## In-Process Communication
 
-For local CLI usage, `gollm` uses a specialized **In-Process Client** (`internal/service/client.go`). It uses `bufconn` to implement the `pb.AgentServiceClient` interface over an in-memory pipe. This provides the safety and structure of gRPC without the latency or configuration complexity of network ports.
+For local CLI usage, `sharur` uses a specialized **In-Process Client** (`internal/service/client.go`). It uses `bufconn` to implement the `pb.AgentServiceClient` interface over an in-memory pipe. This provides the safety and structure of gRPC without the latency or configuration complexity of network ports.
 
 ---
 
