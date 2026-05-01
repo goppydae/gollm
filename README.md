@@ -42,23 +42,23 @@
 nix develop
 
 # Build binary with Go
-go build -o glm ./cmd/glm
+go build -o shr ./cmd/shr
 
 # Or install globally
-go install ./cmd/glm
+go install ./cmd/shr
 ```
 
 ### Quick Start
 
 ```bash
 # Launch the interactive TUI
-glm
+shr
 
 # One-shot answer (JSONL output)
-glm --mode json "What is the best way to structure a Go project?"
+shr --mode json "What is the best way to structure a Go project?"
 
 # Resume the most recent session on startup
-glm --continue
+shr --continue
 ```
 
 ---
@@ -130,8 +130,8 @@ Type `@` in the input to fuzzy-search and attach file contents to your prompt.
 One-shot CLI for quick queries and shell pipelines with JSONL output:
 
 ```bash
-cat main.go | glm --mode json "Refactor this to use interfaces"
-glm --mode json "Summarize the last 10 git commits" --model anthropic/claude-opus-4-5
+cat main.go | shr --mode json "Refactor this to use interfaces"
+shr --mode json "Summarize the last 10 git commits" --model anthropic/claude-opus-4-5
 ```
 
 Each event is emitted as a single JSON line using the protobuf JSON encoding of `AgentEvent`.
@@ -142,10 +142,10 @@ A persistent multi-session gRPC service. The CLI acts as a client to a central `
 
 ```bash
 # Start on the default port (:50051)
-glm --mode grpc
+shr --mode grpc
 
 # Use a custom address
-glm --mode grpc --grpc-addr :9090
+shr --mode grpc --grpc-addr :9090
 ```
 
 The server responds to SIGINT/SIGTERM with a graceful shutdown: in-flight turns are allowed to finish (30 s timeout), all sessions are flushed to disk, then the listener closes.
@@ -206,7 +206,7 @@ Store reusable prompts in `.sharur/prompts/` or `~/.sharur/prompts/`. Expand int
 Load an extension binary with the `--extension` flag (repeatable):
 
 ```bash
-glm --extension /path/to/my-extension "Your prompt here"
+shr --extension /path/to/my-extension "Your prompt here"
 ```
 
 #### Writing an Extension
@@ -282,14 +282,14 @@ Key behaviors:
 
 #### Example: Sandbox Extension
 
-[`examples/sandbox/`](examples/sandbox/) is a complete, standalone gRPC extension that confines all file-system tool calls to the directory `glm` is started in. It is its own Go module and serves as a reference implementation.
+[`examples/sandbox/`](examples/sandbox/) is a complete, standalone gRPC extension that confines all file-system tool calls to the directory `shr` is started in. It is its own Go module and serves as a reference implementation.
 
 ```bash
 # Build
 cd examples/sandbox && go build -o sharur-sandbox .
 
 # Use — all file access outside $PWD is blocked
-glm --extension ./sharur-sandbox "Refactor main.go"
+shr --extension ./sharur-sandbox "Refactor main.go"
 ```
 
 ---
@@ -445,7 +445,7 @@ ag.SetExtensions([]sdk.Extension{&loggingExt{NoopExtension: agent.NoopExtension{
 # Enter the Nix dev shell (includes Go, buf, Mage, etc.)
 nix develop
 
-# Build the glm binary (uses VERSION file for injection)
+# Build the shr binary (uses VERSION file for injection)
 mage build
 
 # Run tests
