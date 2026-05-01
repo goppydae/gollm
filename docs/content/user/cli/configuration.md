@@ -2,6 +2,7 @@
 title: Configuration
 weight: 10
 description: config.json schema, layering, and CLI flag reference
+categories: [cli, configuration]
 ---
 
 `gollm` uses layered JSON configuration. Project-level settings override global defaults.

@@ -2,6 +2,8 @@
 title: Session Management
 weight: 40
 description: JSONL session format, conversation tree, branching, compaction, and export/import
+categories: [internals]
+tags: [sessions]
 ---
 
 Sessions are persisted as **JSONL files** in a project-aware directory:

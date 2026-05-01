@@ -2,6 +2,8 @@
 title: Custom Tools
 weight: 20
 description: Implementing the Tool interface and registering tools with NewAgent
+categories: [sdk]
+tags: [tools]
 ---
 
 ## Built-in Tools

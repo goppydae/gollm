@@ -2,6 +2,8 @@
 title: Events
 weight: 30
 description: EventBus, event types, and subscription patterns
+categories: [sdk]
+tags: [events]
 ---
 
 The agent communicates state transitions via an event bus. Every meaningful action emits an `sdk.Event` to all registered subscribers.

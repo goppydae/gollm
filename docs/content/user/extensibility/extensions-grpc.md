@@ -2,6 +2,8 @@
 title: gRPC Extensions
 weight: 50
 description: Proto handshake, extension lifecycle, and debugging out-of-process extensions
+categories: [extensions]
+tags: [grpc]
 ---
 
 gRPC extensions run as separate processes. `gollm` manages their lifecycle: launching the binary, passing the socket path, waiting for readiness, dialing, and killing on shutdown. The extension communicates entirely over a Unix Domain Socket using the generated proto stubs in `extensions/proto/extension.proto`.

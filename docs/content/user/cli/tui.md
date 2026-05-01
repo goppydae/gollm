@@ -2,6 +2,8 @@
 title: TUI
 weight: 30
 description: Keybindings, slash commands, bang commands, and at-file attachments
+categories: [cli]
+tags: [tui]
 ---
 
 The TUI is a rich, Bubble Tea-powered interface with real-time streaming, tool cards, session management, and a live context usage progress bar in the status footer.

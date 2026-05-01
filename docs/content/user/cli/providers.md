@@ -2,6 +2,8 @@
 title: Provider Setup
 weight: 20
 description: Configuring each LLM provider — API keys, base URLs, model names, and env vars
+categories: [cli, configuration]
+tags: [providers]
 ---
 
 `gollm` supports five LLM providers. All configuration lives in `config.json` files or environment variables; environment variables take priority over config file values.

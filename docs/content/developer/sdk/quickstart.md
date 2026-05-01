@@ -2,6 +2,7 @@
 title: Quickstart
 weight: 10
 description: Embed a gollm agent in a Go program with NewAgent, Subscribe, Prompt, and Idle
+categories: [sdk, getting-started]
 ---
 
 Import `github.com/goppydae/gollm/sdk` to embed an agent in any Go program.

@@ -2,6 +2,8 @@
 title: TUI Internals
 weight: 50
 description: Bubble Tea model structure, event flow, and render data model
+categories: [internals]
+tags: [tui]
 ---
 
 The TUI is built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) (v2) and organized into focused files:

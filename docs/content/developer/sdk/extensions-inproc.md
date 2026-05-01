@@ -2,6 +2,7 @@
 title: In-Process Extensions
 weight: 40
 description: Implementing agent.Extension directly for zero-overhead in-process hooks
+categories: [sdk, extensions]
 ---
 
 If your extension is written in Go and you control the build, you can implement `sdk.Extension` (an alias of `agent.Extension`) directly — no gRPC, no subprocess, no socket. This is the lowest-overhead extension path.

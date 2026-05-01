@@ -2,6 +2,8 @@
 title: Prompt Templates
 weight: 20
 description: Reusable editor templates invoked with /prompt:name
+categories: [extensions]
+tags: [prompts]
 ---
 
 Prompt templates are reusable text snippets that expand directly into the TUI input editor. Unlike skills (which are sent to the agent immediately), prompt templates let you pre-fill the editor so you can review, edit, or complete the text before sending.

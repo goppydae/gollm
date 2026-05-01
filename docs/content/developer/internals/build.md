@@ -2,6 +2,7 @@
 title: Build & Release
 weight: 60
 description: Mage build targets, Nix dev shell, and CI/CD pipelines
+categories: [internals]
 ---
 
 `gollm` uses a combination of **Mage** and **GitHub Actions** for CI/CD.

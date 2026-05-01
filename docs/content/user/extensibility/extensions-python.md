@@ -2,6 +2,8 @@
 title: Python Extensions
 weight: 40
 description: Building gollm extensions in Python using the gRPC proto stubs
+categories: [extensions]
+tags: [python]
 ---
 
 Python extensions use the same gRPC protocol as Go extensions. The loader detects `.py` files and runs them with the configured Python interpreter, passing `GOLLM_SOCKET_PATH` as an environment variable. The extension is expected to listen on that Unix socket.

@@ -2,6 +2,7 @@
 title: JSON Mode
 weight: 40
 description: One-shot CLI with line-delimited JSON event output
+categories: [cli]
 ---
 
 JSON mode runs a single prompt and streams the agent's events as line-delimited JSON (JSONL) to stdout. It is designed for shell pipelines and tooling integration.

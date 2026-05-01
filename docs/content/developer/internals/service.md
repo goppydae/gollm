@@ -2,6 +2,8 @@
 title: Service Architecture
 weight: 20
 description: Protobuf boundary, in-process bufconn client, and session lookup strategies
+categories: [internals]
+tags: [agents]
 ---
 
 `gollm` follows a **Strict Protobuf Internal Architecture**. Instead of UI modes calling Go functions directly, all interfaces are treated as clients of a central `AgentService`.

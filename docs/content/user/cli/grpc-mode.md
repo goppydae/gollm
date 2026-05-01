@@ -2,6 +2,8 @@
 title: gRPC Mode
 weight: 50
 description: Persistent multi-session gRPC service
+categories: [cli]
+tags: [grpc]
 ---
 
 gRPC mode starts a persistent `AgentService` server. Each connecting client supplies a `session_id` and gets its own isolated agent. Sessions are saved to disk after each turn and reloaded automatically on reconnect.

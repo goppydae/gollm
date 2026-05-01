@@ -2,6 +2,7 @@
 title: Go Extensions
 weight: 30
 description: Building gollm extensions in Go using the extensions package
+categories: [extensions]
 ---
 
 Extensions let you add new behaviors to `gollm` beyond what's possible with skills and prompt templates. They can observe and modify every stage of the agent loop — from the raw user input through each LLM turn and tool call to compaction and session teardown. Extensions run as separate processes and communicate with `gollm` via gRPC.

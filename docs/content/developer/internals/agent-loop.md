@@ -2,6 +2,8 @@
 title: Agent Loop
 weight: 10
 description: runTurn, state machine, event bus, and prompt queues
+categories: [internals]
+tags: [agents]
 ---
 
 The agent is driven by an **event-bus** (`internal/events`). Every meaningful state transition emits an `agent.Event` to all subscribers.

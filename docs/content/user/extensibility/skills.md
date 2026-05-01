@@ -2,6 +2,8 @@
 title: Skills
 weight: 10
 description: Reusable prompt templates invoked with /skill:name
+categories: [extensions]
+tags: [skills]
 ---
 
 Skills are Markdown files that provide `gollm` with specialized, reusable instructions for specific tasks. When a skill is invoked, its content is sent as a user message to the agent along with any arguments you provide.

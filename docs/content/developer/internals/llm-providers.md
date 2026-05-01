@@ -2,6 +2,8 @@
 title: LLM Providers
 weight: 30
 description: Provider interface, CompletionRequest, ProviderInfo, ModelLister, and per-adapter notes
+categories: [internals, configuration]
+tags: [providers]
 ---
 
 ## Provider Interface
