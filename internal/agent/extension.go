@@ -146,14 +146,16 @@ func (n *NoopExtension) BeforeToolCall(_ context.Context, _ *ToolCall, _ json.Ra
 func (n *NoopExtension) AfterToolCall(_ context.Context, _ *ToolCall, result *tools.ToolResult) *tools.ToolResult {
 	return result
 }
-func (n *NoopExtension) ModifySystemPrompt(prompt string) string { return prompt }
-func (n *NoopExtension) SessionStart(_ context.Context, _ string, _ SessionStartReason)  {}
-func (n *NoopExtension) SessionEnd(_ context.Context, _ string, _ SessionEndReason)      {}
-func (n *NoopExtension) AgentStart(_ context.Context)                                    {}
-func (n *NoopExtension) AgentEnd(_ context.Context)                                      {}
-func (n *NoopExtension) TurnStart(_ context.Context)                                     {}
-func (n *NoopExtension) TurnEnd(_ context.Context)                                       {}
-func (n *NoopExtension) ModifyInput(_ context.Context, _ string) InputResult             { return InputResult{Action: InputContinue} }
+func (n *NoopExtension) ModifySystemPrompt(prompt string) string                        { return prompt }
+func (n *NoopExtension) SessionStart(_ context.Context, _ string, _ SessionStartReason) {}
+func (n *NoopExtension) SessionEnd(_ context.Context, _ string, _ SessionEndReason)     {}
+func (n *NoopExtension) AgentStart(_ context.Context)                                   {}
+func (n *NoopExtension) AgentEnd(_ context.Context)                                     {}
+func (n *NoopExtension) TurnStart(_ context.Context)                                    {}
+func (n *NoopExtension) TurnEnd(_ context.Context)                                      {}
+func (n *NoopExtension) ModifyInput(_ context.Context, _ string) InputResult {
+	return InputResult{Action: InputContinue}
+}
 func (n *NoopExtension) ModifyContext(_ context.Context, messages []types.Message) []types.Message {
 	return messages
 }

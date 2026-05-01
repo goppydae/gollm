@@ -93,9 +93,9 @@ func (Read) Execute(ctx context.Context, args json.RawMessage, update ToolUpdate
 	return &ToolResult{
 		Content: output,
 		Metadata: map[string]any{
-			"path":   absPath,
-			"lines":  len(lines),
-			"size":   len(data),
+			"path":  absPath,
+			"lines": len(lines),
+			"size":  len(data),
 		},
 	}, nil
 }
@@ -125,6 +125,5 @@ func splitLines(s string) []string {
 	}
 	return lines
 }
-
 
 func (Read) IsReadOnly() bool { return true }

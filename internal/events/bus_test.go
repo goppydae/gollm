@@ -84,7 +84,7 @@ func TestEventBus_Unsubscribe(t *testing.T) {
 	sub.Unsubscribe()
 	bus.Publish("event 2")
 
-	// No sleep needed: unsub() is synchronous with the subscriber map, 
+	// No sleep needed: unsub() is synchronous with the subscriber map,
 	// and Publish() is also synchronous regarding its iteration over that map.
 	// Once unsub() returns, Publish() called afterwards will not see the subscriber.
 
@@ -118,4 +118,3 @@ func TestEventBus_DroppedCounter(t *testing.T) {
 	close(blockCh) // unblock handler goroutine
 	sub.Unsubscribe()
 }
-

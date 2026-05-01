@@ -177,14 +177,14 @@ func (p *AnthropicProvider) stream(ctx context.Context, req *CompletionRequest, 
 		raw := line[6:]
 
 		var ev struct {
-			Type  string          `json:"type"`
-			Index int             `json:"index"`
-			Delta json.RawMessage `json:"delta"`
+			Type         string          `json:"type"`
+			Index        int             `json:"index"`
+			Delta        json.RawMessage `json:"delta"`
 			ContentBlock *struct {
-				Type  string `json:"type"`
-				ID    string `json:"id"`
-				Name  string `json:"name"`
-				Text  string `json:"text"`
+				Type string `json:"type"`
+				ID   string `json:"id"`
+				Name string `json:"name"`
+				Text string `json:"text"`
 			} `json:"content_block"`
 			Message *struct {
 				Usage *struct {
@@ -220,9 +220,9 @@ func (p *AnthropicProvider) stream(ctx context.Context, req *CompletionRequest, 
 				return nil
 			}
 			var delta struct {
-				Type        string `json:"type"`
-				Text        string `json:"text"`
-				PartialJSON string `json:"partial_json"`
+				Type         string `json:"type"`
+				Text         string `json:"text"`
+				PartialJSON  string `json:"partial_json"`
 				ThinkingText string `json:"thinking"`
 			}
 			if err := json.Unmarshal(ev.Delta, &delta); err != nil {

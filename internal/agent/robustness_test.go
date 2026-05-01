@@ -33,15 +33,14 @@ type mockTool struct {
 	called   bool
 }
 
-func (m *mockTool) Name() string                     { return m.name }
-func (m *mockTool) Description() string              { return "mock" }
-func (m *mockTool) Schema() json.RawMessage          { return json.RawMessage("{}") }
-func (m *mockTool) IsReadOnly() bool                 { return m.readOnly }
+func (m *mockTool) Name() string            { return m.name }
+func (m *mockTool) Description() string     { return "mock" }
+func (m *mockTool) Schema() json.RawMessage { return json.RawMessage("{}") }
+func (m *mockTool) IsReadOnly() bool        { return m.readOnly }
 func (m *mockTool) Execute(ctx context.Context, args json.RawMessage, update tools.ToolUpdate) (*tools.ToolResult, error) {
 	m.called = true
 	return &tools.ToolResult{Content: "done"}, nil
 }
-
 
 func TestDryRun(t *testing.T) {
 	prov := &mockProvider{

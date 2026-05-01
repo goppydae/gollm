@@ -11,9 +11,9 @@ func TestGetContextWindow(t *testing.T) {
 		model string
 		want  int
 	}{
-		{"qwen2-72b", 131072},        // unique "qwen" prefix
-		{"mistral-7b", 32768},        // unique "mistral" prefix
-		{"unknown-model-xyz", 0},     // no prefix match
+		{"qwen2-72b", 131072},    // unique "qwen" prefix
+		{"mistral-7b", 32768},    // unique "mistral" prefix
+		{"unknown-model-xyz", 0}, // no prefix match
 	}
 	for _, tc := range tests {
 		got := GetContextWindow(tc.model)

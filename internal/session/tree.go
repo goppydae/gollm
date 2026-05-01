@@ -18,11 +18,11 @@ const (
 
 // TreeNode represents a node in the session tree.
 type TreeNode struct {
-	ID        string
-	ParentID  *string
-	Name      string
-	Model     string
-	Provider  string
+	ID           string
+	ParentID     *string
+	Name         string
+	Model        string
+	Provider     string
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	MsgCount     int
@@ -62,7 +62,7 @@ func (m *Manager) BuildTree(currentID string, scope TreeScope) ([]*TreeNode, err
 	}
 
 	byID := make(map[string]*TreeNode)
-	
+
 	for _, pdir := range projectDirs {
 		pstore := newStore(m.baseDir, pdir)
 		ids, err := pstore.list()
@@ -238,7 +238,6 @@ func findRoot(byID map[string]*TreeNode, byShortID map[string]*TreeNode, id stri
 	return last
 }
 
-
 // GutterInfo tracks vertical branch lines for descendants.
 type GutterInfo struct {
 	Position int
@@ -247,11 +246,11 @@ type GutterInfo struct {
 
 // FlatNode represents a node in the flattened tree list with layout metadata.
 type FlatNode struct {
-	Node               *TreeNode
-	Indent             int
-	ShowConnector      bool
-	IsLast             bool
-	Gutters []GutterInfo
+	Node          *TreeNode
+	Indent        int
+	ShowConnector bool
+	IsLast        bool
+	Gutters       []GutterInfo
 }
 
 // FlattenTree returns a depth-first flat list of all tree nodes with their depth and prefix.
@@ -289,24 +288,24 @@ func FlattenTree(roots []*TreeNode) []FlatNode {
 
 		for i, child := range children {
 			childIsLast := i == len(children)-1
-			
+
 			// Build child gutters
 			var childGutters []GutterInfo
 			if len(gutters) > 0 {
 				childGutters = make([]GutterInfo, len(gutters))
 				copy(childGutters, gutters)
 			}
-			
+
 			// If this node showed a connector, add a gutter for descendants
 			if showConnector {
-				// Connector is at displayIndent - 1. 
+				// Connector is at displayIndent - 1.
 				// We use a simplified version for gollm's FlatNode.
 				pos := indent - 1
 				if pos >= 0 {
 					childGutters = append(childGutters, GutterInfo{Position: pos, Show: !isLast})
 				}
 			}
-			
+
 			walk(child, childIndent, multipleChildren, childIsLast, childGutters)
 		}
 	}
@@ -316,7 +315,7 @@ func FlattenTree(roots []*TreeNode) []FlatNode {
 		if multipleRoots {
 			indent = 1
 		}
-		
+
 		var initialGutters []GutterInfo
 		if multipleRoots && i < len(roots)-1 {
 			initialGutters = []GutterInfo{{Position: 0, Show: true}}
@@ -327,7 +326,6 @@ func FlattenTree(roots []*TreeNode) []FlatNode {
 
 	return result
 }
-
 
 // RenderTree returns a text tree using Unicode box-drawing characters.
 func RenderTree(roots []*TreeNode, currentID string) string {

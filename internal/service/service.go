@@ -181,8 +181,8 @@ func (s *Service) loadIfExists(id string) (*sessionEntry, bool) {
 }
 
 const (
-	heartbeatInterval  = 5 * time.Second
-	sessionIdleTTL     = 30 * time.Minute
+	heartbeatInterval   = 5 * time.Second
+	sessionIdleTTL      = 30 * time.Minute
 	evictionCheckPeriod = 5 * time.Minute
 )
 
@@ -211,22 +211,22 @@ func (s *Service) saveSession(id string) {
 
 func agentStateToSession(st *agent.AgentState) *session.Session {
 	return &session.Session{
-		ID:            st.Session.ID,
-		Name:          st.Session.Name,
-		CreatedAt:     st.Session.CreatedAt,
-		UpdatedAt:     time.Now(),
-		Model:         st.Model,
-		Provider:      st.Provider,
-		Thinking:      string(st.Thinking),
-		SystemPrompt:  st.SystemPrompt,
-		Messages:      st.Messages,
-		DryRun:        st.DryRun,
-		CompactionEnabled:   st.Compaction.Enabled,
-		CompactionReserve:   st.Compaction.ReserveTokens,
-		CompactionKeep:      st.Compaction.KeepRecentTokens,
-		ParentID:            st.Session.ParentID,
-		ParentMessageIndex:  st.Session.ParentMessageIndex,
-		MergeSourceID:       st.Session.MergeSourceID,
+		ID:                 st.Session.ID,
+		Name:               st.Session.Name,
+		CreatedAt:          st.Session.CreatedAt,
+		UpdatedAt:          time.Now(),
+		Model:              st.Model,
+		Provider:           st.Provider,
+		Thinking:           string(st.Thinking),
+		SystemPrompt:       st.SystemPrompt,
+		Messages:           st.Messages,
+		DryRun:             st.DryRun,
+		CompactionEnabled:  st.Compaction.Enabled,
+		CompactionReserve:  st.Compaction.ReserveTokens,
+		CompactionKeep:     st.Compaction.KeepRecentTokens,
+		ParentID:           st.Session.ParentID,
+		ParentMessageIndex: st.Session.ParentMessageIndex,
+		MergeSourceID:      st.Session.MergeSourceID,
 	}
 }
 
@@ -330,7 +330,7 @@ func (s *Service) FollowUp(_ context.Context, req *pb.FollowUpRequest) (*pb.Foll
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "session %q not found", req.SessionId)
 	}
-	
+
 	// Convert pb images to agent images
 	var imgs []agent.Image
 	for _, img := range req.Images {
@@ -512,8 +512,8 @@ func (s *Service) GetMessages(_ context.Context, req *pb.GetMessagesRequest) (*p
 		}
 		for _, tc := range m.ToolCalls {
 			cm.ToolCalls = append(cm.ToolCalls, &pb.ToolCallProto{
-				Id:      tc.ID,
-				Name:    tc.Name,
+				Id:       tc.ID,
+				Name:     tc.Name,
 				ArgsJson: string(tc.Args),
 			})
 		}
@@ -718,19 +718,19 @@ func (s *Service) MergeSession(ctx context.Context, req *pb.MergeSessionRequest)
 	now := time.Now()
 	mergedID := uuid.New().String()
 	merged := &session.Session{
-		ID:            mergedID,
-		ParentID:      &sessA.ID,
-		MergeSourceID: &sessB.ID,
-		Model:         sessA.Model,
-		Provider:      sessA.Provider,
-		Thinking:      sessA.Thinking,
-		SystemPrompt:  sessA.SystemPrompt,
-		CreatedAt:     now,
-		UpdatedAt:     now,
-		DryRun:              sessA.DryRun,
-		CompactionEnabled:   sessA.CompactionEnabled,
-		CompactionReserve:   sessA.CompactionReserve,
-		CompactionKeep:      sessA.CompactionKeep,
+		ID:                mergedID,
+		ParentID:          &sessA.ID,
+		MergeSourceID:     &sessB.ID,
+		Model:             sessA.Model,
+		Provider:          sessA.Provider,
+		Thinking:          sessA.Thinking,
+		SystemPrompt:      sessA.SystemPrompt,
+		CreatedAt:         now,
+		UpdatedAt:         now,
+		DryRun:            sessA.DryRun,
+		CompactionEnabled: sessA.CompactionEnabled,
+		CompactionReserve: sessA.CompactionReserve,
+		CompactionKeep:    sessA.CompactionKeep,
 		Messages: []types.Message{
 			{Role: "user", Content: mergeUserPrompt(sessA.ID, sessB.ID)},
 			{Role: "assistant", Content: synthesisText},
@@ -846,17 +846,17 @@ func (s *Service) squashAndSave(ctx context.Context, source *session.Session, re
 	now := time.Now()
 	newID := uuid.New().String()
 	squashed := &session.Session{
-		ID:           newID,
-		Model:        source.Model,
-		Provider:     source.Provider,
-		Thinking:     source.Thinking,
-		SystemPrompt: source.SystemPrompt,
-		CreatedAt:    now,
-		UpdatedAt:    now,
-		DryRun:              source.DryRun,
-		CompactionEnabled:   source.CompactionEnabled,
-		CompactionReserve:   source.CompactionReserve,
-		CompactionKeep:      source.CompactionKeep,
+		ID:                newID,
+		Model:             source.Model,
+		Provider:          source.Provider,
+		Thinking:          source.Thinking,
+		SystemPrompt:      source.SystemPrompt,
+		CreatedAt:         now,
+		UpdatedAt:         now,
+		DryRun:            source.DryRun,
+		CompactionEnabled: source.CompactionEnabled,
+		CompactionReserve: source.CompactionReserve,
+		CompactionKeep:    source.CompactionKeep,
 		Messages: []types.Message{
 			{Role: "user", Content: fmt.Sprintf("Summary of %d messages from session %s:", len(selected), shortID(source.ID))},
 			{Role: "assistant", Content: condensed},
@@ -909,7 +909,6 @@ func (s *Service) llmOneShotText(ctx context.Context, model, _ string, userMsg s
 	}
 	return sb.String(), nil
 }
-
 
 func buildMergePrompt(a, b *session.Session) string {
 	const maxMsgs = 20

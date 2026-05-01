@@ -42,8 +42,8 @@ type pickerDelegate struct { //nolint:unused
 // pickerPageSize is the number of items shown per page in the file picker.
 const pickerPageSize = 10
 
-func (d pickerDelegate) Height() int                               { return 1 } //nolint:unused
-func (d pickerDelegate) Spacing() int                              { return 0 } //nolint:unused
+func (d pickerDelegate) Height() int                               { return 1 }   //nolint:unused
+func (d pickerDelegate) Spacing() int                              { return 0 }   //nolint:unused
 func (d pickerDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd { return nil } //nolint:unused
 func (d pickerDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) { //nolint:unused
 	i, ok := listItem.(pickerItem)
@@ -77,10 +77,9 @@ func newPickerList(style Style) list.Model {
 	l.SetShowStatusBar(false)
 	l.SetShowPagination(false)
 	l.KeyMap.Quit.Unbind() // Don't quit the whole app on 'q' in picker
-	
+
 	return l
 }
-
 
 // discoverFiles walks root and returns relative paths for both files and
 // directories (directories have a trailing /), skipping hidden dirs and known

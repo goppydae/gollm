@@ -77,9 +77,9 @@ func (Write) Execute(ctx context.Context, args json.RawMessage, update ToolUpdat
 	result := &ToolResult{
 		Content: fmt.Sprintf("Written %d bytes to %s", len(params.Content), path),
 		Metadata: map[string]any{
-			"path":   path,
-			"size":   info.Size(),
-			"mode":   info.Mode().String(),
+			"path": path,
+			"size": info.Size(),
+			"mode": info.Mode().String(),
 		},
 	}
 

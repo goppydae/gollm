@@ -144,8 +144,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd = tea.Batch(m.syncHistoryCmd(), m.syncStateCmd(), listenForEvent(m.eventCh))
 	}
 
-
-
 	return m, cmd
 }
 
@@ -999,4 +997,3 @@ func (m *model) saveConfigFromForm() {
 		m.history = append(m.history, historyEntry{role: "info", items: []contentItem{{kind: contentItemText, text: "Configuration updated"}}})
 	}
 }
-

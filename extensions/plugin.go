@@ -91,9 +91,13 @@ func (n *NoopPlugin) TurnEnd(_ context.Context)                                 
 func (n *NoopPlugin) ModifyInput(_ context.Context, _ string) agent.InputResult {
 	return agent.InputResult{Action: agent.InputContinue}
 }
-func (n *NoopPlugin) ModifyContext(_ context.Context, messagesJSON string) string           { return messagesJSON }
-func (n *NoopPlugin) BeforeProviderRequest(_ context.Context, requestJSON string) string    { return requestJSON }
-func (n *NoopPlugin) AfterProviderResponse(_ context.Context, _ string, _ int)             {}
+func (n *NoopPlugin) ModifyContext(_ context.Context, messagesJSON string) string {
+	return messagesJSON
+}
+func (n *NoopPlugin) BeforeProviderRequest(_ context.Context, requestJSON string) string {
+	return requestJSON
+}
+func (n *NoopPlugin) AfterProviderResponse(_ context.Context, _ string, _ int) {}
 func (n *NoopPlugin) BeforeCompact(_ context.Context, _ agent.CompactionPrep) *agent.CompactionResult {
 	return nil
 }

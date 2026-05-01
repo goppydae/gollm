@@ -45,7 +45,7 @@ func TestStateMachine_SameState(t *testing.T) {
 
 func TestStateMachine_InvalidTransition(t *testing.T) {
 	sm := NewStateMachine(StateIdle, nil)
-	
+
 	// Idle -> Aborting is invalid
 	err := sm.Transition(StateAborting)
 	if err == nil {
@@ -54,7 +54,7 @@ func TestStateMachine_InvalidTransition(t *testing.T) {
 
 	// Move to Thinking
 	_ = sm.Transition(StateThinking)
-	
+
 	// Thinking -> Executing is valid
 	err = sm.Transition(StateExecuting)
 	if err != nil {

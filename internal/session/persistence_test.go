@@ -48,8 +48,8 @@ func TestStore_AppendRead_Tree(t *testing.T) {
 
 	// 3. Write message
 	r3 := record{
-		Type: TypeMessage,
-		ID:   "msg1",
+		Type:     TypeMessage,
+		ID:       "msg1",
 		ParentID: ptr("m1"),
 		Message: &types.Message{
 			Role:    "user",
@@ -295,4 +295,3 @@ func TestManager_AppendSessionInfo(t *testing.T) {
 		t.Errorf("expected session name 'test name', got %s", loaded.Name)
 	}
 }
-

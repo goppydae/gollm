@@ -15,7 +15,7 @@ import (
 
 // summaryProvider returns a fixed summary text as the LLM response.
 type summaryProvider struct {
-	summaryText string
+	summaryText   string
 	contextWindow int
 }
 
@@ -63,7 +63,7 @@ func TestCompact_CompactionNoticeAppearsInHistory(t *testing.T) {
 	if len(got) < 4 {
 		t.Errorf("expected at least 4 messages (3 original + 1 notice), got %d", len(got))
 	}
-	
+
 	foundNotice := false
 	for _, m := range got {
 		if m.Role == "compaction" {
@@ -104,7 +104,7 @@ func TestCompact_ReducesLlmContextButPreservesHistory(t *testing.T) {
 
 	before := len(msgs)
 	ag.Compact(context.Background(), 1000)
-	
+
 	historyCount := len(ag.Messages())
 	if historyCount <= before {
 		t.Errorf("expected history count to increase (original + notice), got %d <= %d", historyCount, before)
@@ -114,7 +114,7 @@ func TestCompact_ReducesLlmContextButPreservesHistory(t *testing.T) {
 	if len(llmMsgs) >= before {
 		t.Errorf("LLM context did not reduce: llmMsgs=%d before=%d", len(llmMsgs), before)
 	}
-	
+
 	if !strings.HasPrefix(llmMsgs[0].Content, summarySentinel) {
 		t.Errorf("first LLM message should be the summary, got role=%q content=%q", llmMsgs[0].Role, llmMsgs[0].Content)
 	}

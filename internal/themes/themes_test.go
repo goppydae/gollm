@@ -33,9 +33,9 @@ func TestParseAdaptiveColor(t *testing.T) {
 func TestLoadSaveTheme(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "test-theme.json")
-	
+
 	orig := &Theme{
-		Name: "test-theme",
+		Name:   "test-theme",
 		Accent: AdaptiveColor{Light: "#ff0000", Dark: "#00ff00"},
 	}
 
@@ -58,14 +58,14 @@ func TestLoadSaveTheme(t *testing.T) {
 
 func TestNewStyle(t *testing.T) {
 	theme := Theme{
-		Name:   "test",
-		Accent: AdaptiveColor{Light: "#ff0000", Dark: "#00ff00"},
+		Name:     "test",
+		Accent:   AdaptiveColor{Light: "#ff0000", Dark: "#00ff00"},
 		Bordered: AdaptiveColor{Light: "#cccccc", Dark: "#333333"},
-		Muted: AdaptiveColor{Light: "#888888", Dark: "#777777"},
-		Dim: AdaptiveColor{Light: "#444444", Dark: "#222222"},
+		Muted:    AdaptiveColor{Light: "#888888", Dark: "#777777"},
+		Dim:      AdaptiveColor{Light: "#444444", Dark: "#222222"},
 	}
 	style := NewStyle(theme)
-	
+
 	// Exercise style methods
 	_ = style.Header()
 	_ = style.Logo()
@@ -88,7 +88,7 @@ func TestNewStyle(t *testing.T) {
 	_ = style.NoticeMsg("error")
 	_ = style.ThinkingBox()
 	_ = style.ToolCall()
-	
+
 	// Exercise color accessors
 	_ = style.AccentColor()
 	_ = style.AccentTextColor()

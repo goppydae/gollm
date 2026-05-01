@@ -149,7 +149,7 @@ func (p *OpenAIProvider) stream(ctx context.Context, req *CompletionRequest, ch 
 					Reasoning        string `json:"reasoning"`
 					ReasoningContent string `json:"reasoning_content"`
 					ReasoningText    string `json:"reasoning_text"`
-					ToolCalls []struct {
+					ToolCalls        []struct {
 						Index    int    `json:"index"`
 						ID       string `json:"id"`
 						Type     string `json:"type"`

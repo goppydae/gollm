@@ -766,12 +766,12 @@ func (a *Agent) Compact(ctx context.Context, keepRecentTokens int) {
 	if cutResult.FirstKeptIndex < len(a.state.Messages) {
 		firstKeptID = a.state.Messages[cutResult.FirstKeptIndex].ID
 	}
-	
+
 	a.state.LatestCompaction = &types.CompactionState{
 		Summary:          summaryText,
 		FirstKeptEntryID: firstKeptID,
 	}
-	
+
 	tokensAfter := a.estimateContextTokensNoLock()
 	freed = tokensBefore - tokensAfter
 	if freed < 0 {
@@ -785,7 +785,7 @@ func (a *Agent) Compact(ctx context.Context, keepRecentTokens int) {
 		Content:   fmt.Sprintf("Context compacted. Freed %d tokens.", freed),
 		Timestamp: time.Now(),
 	}
-	
+
 	a.state.Messages = append(a.state.Messages, compactionMsg)
 
 	// Record in session tree
@@ -807,7 +807,6 @@ func (a *Agent) appendMessage(msg Message) {
 		a.state.Messages = append(a.state.Messages, msg)
 	}
 }
-
 
 type cutResult struct {
 	FirstKeptIndex int
@@ -879,7 +878,7 @@ func (a *Agent) generateSummary(ctx context.Context, messages []Message, previou
 	}
 
 	conversationText := a.serializeConversation(messages)
-	
+
 	var promptText string
 	if previousSummary != "" {
 		promptText = fmt.Sprintf("<conversation>\n%s\n</conversation>\n\n<previous-summary>\n%s\n</previous-summary>\n\n%s", conversationText, previousSummary, prompt)
@@ -964,7 +963,7 @@ func (a *Agent) formatFileActivity(read, mod []string) string {
 	if len(read) == 0 && len(mod) == 0 {
 		return ""
 	}
-	
+
 	var sb strings.Builder
 	sb.WriteString("\n\n### File Activity\n")
 	if len(read) > 0 {
@@ -975,7 +974,6 @@ func (a *Agent) formatFileActivity(read, mod []string) string {
 	}
 	return sb.String()
 }
-
 
 // parseFileActivityFromSummary extracts the "### File Activity" section from a
 // previously generated summary so file tracking is preserved across compaction
@@ -1029,9 +1027,15 @@ func (a *Agent) extractFileContext(messages []Message) (read []string, modified 
 			_ = json.Unmarshal(tc.Args, &args)
 
 			path := args.Path
-			if path == "" { path = args.TargetFile }
-			if path == "" { path = args.Target }
-			if path == "" { continue }
+			if path == "" {
+				path = args.TargetFile
+			}
+			if path == "" {
+				path = args.Target
+			}
+			if path == "" {
+				continue
+			}
 
 			switch tc.Name {
 			case "read", "ls", "grep", "find":
@@ -1042,8 +1046,12 @@ func (a *Agent) extractFileContext(messages []Message) (read []string, modified 
 		}
 	}
 
-	for f := range readMap { read = append(read, f) }
-	for f := range modMap { modified = append(modified, f) }
+	for f := range readMap {
+		read = append(read, f)
+	}
+	for f := range modMap {
+		modified = append(modified, f)
+	}
 	sort.Strings(read)
 	sort.Strings(modified)
 	return
@@ -1078,7 +1086,7 @@ func (a *Agent) buildLlmMessagesNoLock() []Message {
 
 	lc := a.state.LatestCompaction
 	res := make([]Message, 0, len(a.state.Messages)+1)
-	
+
 	// Add summary message
 	res = append(res, Message{
 		Role:    "success",
@@ -1095,7 +1103,7 @@ func (a *Agent) buildLlmMessagesNoLock() []Message {
 			res = append(res, m)
 		}
 	}
-	
+
 	// If boundary ID was not found (shouldn't happen with proper session management),
 	// fallback to full history to avoid data loss.
 	if !found && lc.FirstKeptEntryID != "" {
@@ -1192,7 +1200,6 @@ func (a *Agent) ResetSession(id string) {
 
 	a.events.Publish(Event{Type: EventQueueUpdate})
 }
-
 
 // InvokeTool manually triggers a tool call as if it came from the assistant.
 // It executes the tool, records the result, and then starts the agent loop

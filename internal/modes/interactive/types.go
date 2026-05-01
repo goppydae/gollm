@@ -13,8 +13,8 @@ import (
 	"charm.land/bubbles/v2/textarea"
 	"charm.land/bubbles/v2/viewport"
 
-	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
 	"github.com/goppydae/gollm/internal/config"
+	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
 	"github.com/goppydae/gollm/internal/session"
 	"github.com/goppydae/gollm/internal/themes"
 )
@@ -34,7 +34,6 @@ const (
 // agentEventMsg wraps a pb.AgentEvent for delivery through bubbletea.
 type agentEventMsg struct{ ev *pb.AgentEvent }
 
-
 // model holds the TUI state.
 type model struct {
 	width  int
@@ -50,9 +49,9 @@ type model struct {
 	sessionID string
 
 	// Context / cancellation
-	ctx         context.Context
-	cancel      context.CancelFunc
-	eventCh     chan *pb.AgentEvent
+	ctx     context.Context
+	cancel  context.CancelFunc
+	eventCh chan *pb.AgentEvent
 
 	// Agent state
 	isRunning         bool
@@ -87,7 +86,6 @@ type model struct {
 	pickerOpen      bool
 	lastPickerType  pickerType
 	lastPickerQuery string
-
 
 	// Input
 	input         textarea.Model

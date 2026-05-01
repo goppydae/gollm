@@ -50,11 +50,11 @@ func (Edit) Schema() json.RawMessage {
 
 func (Edit) Execute(ctx context.Context, args json.RawMessage, update ToolUpdate) (*ToolResult, error) {
 	var params struct {
-		Path   string `json:"path"`
+		Path    string `json:"path"`
 		OldText string `json:"oldText"`
 		NewText string `json:"newText"`
-		Regex  bool   `json:"regex"`
-		Offset int    `json:"offset"`
+		Regex   bool   `json:"regex"`
+		Offset  int    `json:"offset"`
 	}
 	if err := json.Unmarshal(args, &params); err != nil {
 		return nil, fmt.Errorf("invalid arguments: %w", err)

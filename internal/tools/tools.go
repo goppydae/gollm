@@ -28,9 +28,9 @@ type ToolCall struct {
 
 // ToolResult represents the output of a tool execution.
 type ToolResult struct {
-	Content  string          `json:"content"`
-	IsError  bool            `json:"isError,omitempty"`
-	Metadata map[string]any  `json:"metadata,omitempty"`
+	Content  string         `json:"content"`
+	IsError  bool           `json:"isError,omitempty"`
+	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
 // ToolRegistry manages registered tools.
@@ -70,7 +70,6 @@ func (r *ToolRegistry) Has(name string) bool {
 	_, ok := r.tools[name]
 	return ok
 }
-
 
 // NormalizePath strips a leading '@' from a path if present.
 func NormalizePath(path string) string {

@@ -86,7 +86,6 @@ func (m *model) layout() string {
 	return mainStr
 }
 
-
 func (m *model) refreshViewport() *model {
 	m.chatContent = m.buildChatContent()
 	m.vp.SetContent(m.chatContent)
@@ -118,11 +117,11 @@ func (m *model) buildChatContent() string {
 }
 
 var (
-	mdRenderer      *glamour.TermRenderer
-	mdCachedWidth   int
-	mdCachedBg      string
-	mdCachedCodeBg  string
-	mdMu            sync.Mutex
+	mdRenderer     *glamour.TermRenderer
+	mdCachedWidth  int
+	mdCachedBg     string
+	mdCachedCodeBg string
+	mdMu           sync.Mutex
 )
 
 func renderMarkdown(content string, width int, bgHex, codeBgHex string) string {
@@ -326,8 +325,12 @@ func renderToolCall(tc toolCallEntry, output string, chatW int, s Style, expande
 
 	var rawLines []string
 	icon := "◌"
-	if tc.status == toolCallSuccess { icon = "✓" }
-	if tc.status == toolCallFailure { icon = "✗" }
+	if tc.status == toolCallSuccess {
+		icon = "✓"
+	}
+	if tc.status == toolCallFailure {
+		icon = "✗"
+	}
 
 	argLines := strings.Split(tc.arg, "\n")
 	header := icon + " " + tc.name

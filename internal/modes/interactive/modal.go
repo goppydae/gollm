@@ -7,13 +7,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/goppydae/gollm/internal/session"
-	tea "charm.land/bubbletea/v2"
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/table"
-	lipgloss "charm.land/lipgloss/v2"
+	tea "charm.land/bubbletea/v2"
 	"charm.land/huh/v2"
+	lipgloss "charm.land/lipgloss/v2"
+	"github.com/goppydae/gollm/internal/session"
 )
 
 // modalKind identifies the type of modal overlay.
@@ -28,7 +28,6 @@ const (
 	modalHelp
 	modalRebase
 )
-
 
 // modalState holds the state of a modal overlay.
 type modalState struct {
@@ -77,9 +76,9 @@ type rebaseDelegate struct {
 	style Style
 }
 
-func (d rebaseDelegate) Height() int                               { return 1 }
-func (d rebaseDelegate) Spacing() int                              { return 0 }
-func (d rebaseDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd  { return nil }
+func (d rebaseDelegate) Height() int                             { return 1 }
+func (d rebaseDelegate) Spacing() int                            { return 0 }
+func (d rebaseDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
 
 func (d rebaseDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
 	ri, ok := listItem.(rebaseItem)
@@ -279,8 +278,8 @@ type treeDelegate struct {
 	currentID string
 }
 
-func (d treeDelegate) Height() int                               { return 1 } //nolint:unused
-func (d treeDelegate) Spacing() int                              { return 0 } //nolint:unused
+func (d treeDelegate) Height() int                               { return 1 }   //nolint:unused
+func (d treeDelegate) Spacing() int                              { return 0 }   //nolint:unused
 func (d treeDelegate) Update(msg tea.Msg, m *list.Model) tea.Cmd { return nil } //nolint:unused
 func (d treeDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) { //nolint:unused
 	i, ok := listItem.(treeItem)
@@ -387,10 +386,16 @@ func (m *modalState) render(width, height int, style Style, h help.Model, k KeyM
 	maxH := height - pad*2
 
 	modalW := width * 9 / 10
-	if modalW > maxW { modalW = maxW }
-	if modalW > 140  { modalW = 140 }
+	if modalW > maxW {
+		modalW = maxW
+	}
+	if modalW > 140 {
+		modalW = 140
+	}
 	modalH := height * 8 / 10
-	if modalH > maxH { modalH = maxH }
+	if modalH > maxH {
+		modalH = maxH
+	}
 
 	var content string
 	switch m.kind {
@@ -532,4 +537,3 @@ func (m *modalState) openModelsModal(availableModels []string, currentModel stri
 
 	m.list = l
 }
-

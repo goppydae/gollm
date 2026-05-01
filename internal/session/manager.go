@@ -40,10 +40,10 @@ type Session struct {
 	RebasedFrom        *string   `json:"rebasedFrom,omitempty"`
 
 	// Config (inherited or session-wide)
-	DryRun            bool `json:"dryRun,omitempty"`
-	CompactionEnabled bool `json:"compactionEnabled,omitempty"`
-	CompactionReserve int  `json:"compactionReserveTokens,omitempty"`
-	CompactionKeep    int  `json:"compactionKeepRecentTokens,omitempty"`
+	DryRun            bool                   `json:"dryRun,omitempty"`
+	CompactionEnabled bool                   `json:"compactionEnabled,omitempty"`
+	CompactionReserve int                    `json:"compactionReserveTokens,omitempty"`
+	CompactionKeep    int                    `json:"compactionKeepRecentTokens,omitempty"`
 	LatestCompaction  *types.CompactionState `json:"latestCompaction,omitempty"`
 }
 
@@ -64,22 +64,22 @@ type SessionSummary struct {
 // ToTypes converts a session.Session to types.Session.
 func (s *Session) ToTypes() *types.Session {
 	ts := &types.Session{
-		ID:           s.ID,
-		Name:         s.Name,
-		CreatedAt:    s.CreatedAt,
-		UpdatedAt:    s.UpdatedAt,
-		Model:        s.Model,
-		Provider:     s.Provider,
-		Thinking:     types.ThinkingLevel(s.Thinking),
-		SystemPrompt: s.SystemPrompt,
-		Messages:     s.Messages,
+		ID:                s.ID,
+		Name:              s.Name,
+		CreatedAt:         s.CreatedAt,
+		UpdatedAt:         s.UpdatedAt,
+		Model:             s.Model,
+		Provider:          s.Provider,
+		Thinking:          types.ThinkingLevel(s.Thinking),
+		SystemPrompt:      s.SystemPrompt,
+		Messages:          s.Messages,
 		DryRun:            s.DryRun,
-		CompactionEnabled:   s.CompactionEnabled,
-		CompactionReserve:   s.CompactionReserve,
-		CompactionKeep:      s.CompactionKeep,
-		LatestCompaction:    s.LatestCompaction,
+		CompactionEnabled: s.CompactionEnabled,
+		CompactionReserve: s.CompactionReserve,
+		CompactionKeep:    s.CompactionKeep,
+		LatestCompaction:  s.LatestCompaction,
 	}
-	
+
 	// Find ParentID from header record if available
 	for _, r := range s.Records {
 		if r.Type == TypeSession && r.ParentSession != nil {
@@ -87,7 +87,7 @@ func (s *Session) ToTypes() *types.Session {
 			break
 		}
 	}
-	
+
 	return ts
 }
 
@@ -358,7 +358,7 @@ func (m *Manager) ListSummaries() ([]SessionSummary, error) {
 func (m *Manager) SavePath(sess *Session, path string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	var records []record
 	// Add header
 	records = append(records, record{
@@ -367,7 +367,7 @@ func (m *Manager) SavePath(sess *Session, path string) error {
 		Version:   3,
 		Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
 	})
-	
+
 	// Add messages as records
 	for _, msg := range sess.Messages {
 		records = append(records, record{
@@ -377,7 +377,7 @@ func (m *Manager) SavePath(sess *Session, path string) error {
 			Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
 		})
 	}
-	
+
 	return m.store.writePath(records, path)
 }
 
@@ -453,11 +453,11 @@ func (s *Session) buildSessionContext(leafID string) error {
 				Content: fmt.Sprintf("Context compacted. Freed %d tokens.", freed),
 			})
 		}
-		
+
 		if r.ParentID != nil {
 			s.ParentID = r.ParentID
 		}
-		
+
 		if t, err := time.Parse(time.RFC3339Nano, r.Timestamp); err == nil {
 			s.UpdatedAt = t
 		}
@@ -634,7 +634,7 @@ func (m *Manager) BranchAt(source *Session, leafID string) (*Session, error) {
 	// and potentially adding a new leaf if we want to diverge.
 	// But to match the previous behavior of creating a NEW file:
 	newID := generateID()
-	
+
 	// Create new session file with copies of records up to leafID
 	var records []record
 	byID := make(map[string]record)
@@ -663,7 +663,7 @@ func (m *Manager) BranchAt(source *Session, leafID string) (*Session, error) {
 		}
 		curr = *r.ParentID
 	}
-	
+
 	// Add root header
 	for _, r := range source.Records {
 		if r.Type == TypeSession {
@@ -696,7 +696,7 @@ func (m *Manager) BranchAt(source *Session, leafID string) (*Session, error) {
 func (m *Manager) Save(sess *Session) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	// If we changed Name or other session-wide info, we might need to append a session_info record.
 	// For now, we assume changes are made via Append* methods.
 	return nil
@@ -709,7 +709,7 @@ func (m *Manager) Rebase(source *Session, recordIDs []string) (*Session, error) 
 
 	newID := generateID()
 	var records []record
-	
+
 	// Add header
 	for _, r := range source.Records {
 		if r.Type == TypeSession {
@@ -774,4 +774,3 @@ func generateID() string {
 func ptr[T any](v T) *T {
 	return &v
 }
-

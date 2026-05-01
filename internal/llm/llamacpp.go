@@ -53,7 +53,7 @@ func (p *LlamaCppProvider) fetchNCtx() int {
 	defer func() { _ = resp.Body.Close() }()
 
 	var props struct {
-		NCtx                     int `json:"n_ctx"`
+		NCtx                      int `json:"n_ctx"`
 		DefaultGenerationSettings struct {
 			NCtx int `json:"n_ctx"`
 		} `json:"default_generation_settings"`

@@ -68,27 +68,27 @@ type CompactionState struct {
 
 // Session represents a conversation session.
 type Session struct {
-	ID         string          `json:"id"`
-	ParentID   *string         `json:"parentId"`
-	Name       string          `json:"name"`
-	CreatedAt  time.Time       `json:"createdAt"`
-	UpdatedAt  time.Time       `json:"updatedAt"`
-	Model      string          `json:"model"`
-	Provider   string          `json:"provider"`
-	Thinking   ThinkingLevel   `json:"thinkingLevel"`
-	SystemPrompt string        `json:"systemPrompt"`
-	Messages   []Message       `json:"messages"`
-	Tools      []ToolInfo      `json:"tools,omitempty"`
-	MaxTokens  int             `json:"maxTokens,omitempty"`
-	Temperature float64        `json:"temperature,omitempty"`
-	IsRunning  bool            `json:"isRunning"`
-	DryRun              bool   `json:"dryRun,omitempty"`
-	CompactionEnabled   bool   `json:"compactionEnabled,omitempty"`
-	CompactionReserve   int    `json:"compactionReserveTokens,omitempty"`
-	CompactionKeep      int    `json:"compactionKeepRecentTokens,omitempty"`
-	ParentMessageIndex  *int   `json:"parentMessageIndex,omitempty"`
-	MergeSourceID       *string `json:"mergeSourceId,omitempty"`
-	LatestCompaction    *CompactionState `json:"latestCompaction,omitempty"`
+	ID                 string           `json:"id"`
+	ParentID           *string          `json:"parentId"`
+	Name               string           `json:"name"`
+	CreatedAt          time.Time        `json:"createdAt"`
+	UpdatedAt          time.Time        `json:"updatedAt"`
+	Model              string           `json:"model"`
+	Provider           string           `json:"provider"`
+	Thinking           ThinkingLevel    `json:"thinkingLevel"`
+	SystemPrompt       string           `json:"systemPrompt"`
+	Messages           []Message        `json:"messages"`
+	Tools              []ToolInfo       `json:"tools,omitempty"`
+	MaxTokens          int              `json:"maxTokens,omitempty"`
+	Temperature        float64          `json:"temperature,omitempty"`
+	IsRunning          bool             `json:"isRunning"`
+	DryRun             bool             `json:"dryRun,omitempty"`
+	CompactionEnabled  bool             `json:"compactionEnabled,omitempty"`
+	CompactionReserve  int              `json:"compactionReserveTokens,omitempty"`
+	CompactionKeep     int              `json:"compactionKeepRecentTokens,omitempty"`
+	ParentMessageIndex *int             `json:"parentMessageIndex,omitempty"`
+	MergeSourceID      *string          `json:"mergeSourceId,omitempty"`
+	LatestCompaction   *CompactionState `json:"latestCompaction,omitempty"`
 }
 
 // Usage tracks token usage.

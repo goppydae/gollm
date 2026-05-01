@@ -66,10 +66,10 @@ func slowProvider(delay time.Duration) *fakeProvider {
 
 type fakeTool struct{}
 
-func (f *fakeTool) Name() string                     { return "noop" }
-func (f *fakeTool) Description() string              { return "noop" }
-func (f *fakeTool) Schema() json.RawMessage          { return json.RawMessage("{}") }
-func (f *fakeTool) IsReadOnly() bool                 { return true }
+func (f *fakeTool) Name() string            { return "noop" }
+func (f *fakeTool) Description() string     { return "noop" }
+func (f *fakeTool) Schema() json.RawMessage { return json.RawMessage("{}") }
+func (f *fakeTool) IsReadOnly() bool        { return true }
 func (f *fakeTool) Execute(_ context.Context, _ json.RawMessage, _ tools.ToolUpdate) (*tools.ToolResult, error) {
 	return &tools.ToolResult{Content: "ok"}, nil
 }

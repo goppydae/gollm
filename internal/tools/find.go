@@ -80,7 +80,7 @@ func (Find) Execute(ctx context.Context, args json.RawMessage, update ToolUpdate
 
 	if !info.IsDir() {
 		// Single file check
-		 matched, err := filepath.Match(params.Glob, filepath.Base(absRoot))
+		matched, err := filepath.Match(params.Glob, filepath.Base(absRoot))
 		if err != nil {
 			return nil, fmt.Errorf("match: %w", err)
 		}

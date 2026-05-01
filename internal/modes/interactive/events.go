@@ -324,7 +324,7 @@ func (m *model) applyHistorySync(msgs []*pb.ConversationMessage) {
 	m.newAssistantEntry = true
 
 	m.updatePromptHistory(msgs)
-	
+
 	// Re-calculate total tokens from the synced history
 	m.tokens = 0
 	for _, entry := range m.history {
@@ -494,16 +494,16 @@ func (m *model) getAgentStats() agentStats {
 	}
 	total := user + asst + toolResults
 	return agentStats{
-		SessionID:    m.sessionID,
-		Name:         state.GetModel(),
-		Model:        state.Model,
-		Provider:     state.Provider,
-		Thinking:     state.ThinkingLevel,
-		SessionFile:  m.sessionMgr.SessionPath(m.sessionID),
-		UserMessages: user,
+		SessionID:     m.sessionID,
+		Name:          state.GetModel(),
+		Model:         state.Model,
+		Provider:      state.Provider,
+		Thinking:      state.ThinkingLevel,
+		SessionFile:   m.sessionMgr.SessionPath(m.sessionID),
+		UserMessages:  user,
 		AssistantMsgs: asst,
-		ToolCalls:    toolCalls,
-		ToolResults:  toolResults,
+		ToolCalls:     toolCalls,
+		ToolResults:   toolResults,
 		TotalMessages: total,
 		ContextTokens: m.tokens,
 		ContextWindow: m.contextWindow,
@@ -537,4 +537,3 @@ type agentStats struct {
 	QueuedSteer    int
 	QueuedFollowUp int
 }
-

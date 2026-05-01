@@ -27,10 +27,10 @@ const (
 
 // record is a single JSONL line in a session file.
 type record struct {
-	Type      string   `json:"type"`
-	ID        string   `json:"id,omitempty"`
-	ParentID  *string  `json:"parentId,omitempty"`
-	Timestamp string   `json:"timestamp"` // ISO 8601
+	Type      string  `json:"type"`
+	ID        string  `json:"id,omitempty"`
+	ParentID  *string `json:"parentId,omitempty"`
+	Timestamp string  `json:"timestamp"` // ISO 8601
 
 	// For "session" (header)
 	Version       int     `json:"version,omitempty"`
@@ -65,7 +65,6 @@ type record struct {
 	CustomType string          `json:"customType,omitempty"`
 	Data       json.RawMessage `json:"data,omitempty"`
 }
-
 
 // store handles low-level JSONL file I/O for a session directory.
 type store struct {

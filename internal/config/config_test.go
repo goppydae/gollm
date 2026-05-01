@@ -36,7 +36,7 @@ func TestConfig_Validate(t *testing.T) {
 
 func TestExpandPath(t *testing.T) {
 	home, _ := os.UserHomeDir()
-	
+
 	cases := []struct {
 		input    string
 		expected string
@@ -57,7 +57,7 @@ func TestExpandPath(t *testing.T) {
 func TestLoad(t *testing.T) {
 	// Create a temporary directory for testing config files
 	tmpDir := t.TempDir()
-	
+
 	// Create a mock home directory
 	mockHome := filepath.Join(tmpDir, "home")
 	if err := os.MkdirAll(filepath.Join(mockHome, ".gollm"), 0755); err != nil {

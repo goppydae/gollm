@@ -92,8 +92,8 @@ func (p *OllamaProvider) Stream(ctx context.Context, req *CompletionRequest) (<-
 			tools := make([]map[string]any, len(req.Tools))
 			for i, t := range req.Tools {
 				tools[i] = map[string]any{
-					"type":        "function",
-					"function":    map[string]any{"name": t.Name, "description": t.Description, "parameters": json.RawMessage(t.Schema)},
+					"type":     "function",
+					"function": map[string]any{"name": t.Name, "description": t.Description, "parameters": json.RawMessage(t.Schema)},
 				}
 			}
 			reqBody["tools"] = tools
@@ -216,8 +216,8 @@ func (p *OllamaProvider) Stream(ctx context.Context, req *CompletionRequest) (<-
 
 		// Final event
 		events <- &Event{
-			Type:    EventMessageEnd,
-			Content: fullContent.String(),
+			Type:     EventMessageEnd,
+			Content:  fullContent.String(),
 			ToolCall: nil, // Multiple tool calls are in the stream
 		}
 	}()
@@ -266,4 +266,3 @@ func convertMessagesForOllama(messages []types.Message) []map[string]any {
 	}
 	return out
 }
-

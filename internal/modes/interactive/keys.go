@@ -6,20 +6,20 @@ import (
 
 // KeyMap defines the keybindings for the TUI.
 type KeyMap struct {
-	Up             key.Binding
-	Down           key.Binding
-	PageUp         key.Binding
-	PageDown       key.Binding
-	Enter          key.Binding
-	ShiftEnter     key.Binding
-	CtrlEnter      key.Binding
-	Esc            key.Binding
-	CtrlC          key.Binding
-	CtrlO          key.Binding
-	CtrlP          key.Binding
-	Tab            key.Binding
-	ShiftTab       key.Binding
-	Help           key.Binding
+	Up         key.Binding
+	Down       key.Binding
+	PageUp     key.Binding
+	PageDown   key.Binding
+	Enter      key.Binding
+	ShiftEnter key.Binding
+	CtrlEnter  key.Binding
+	Esc        key.Binding
+	CtrlC      key.Binding
+	CtrlO      key.Binding
+	CtrlP      key.Binding
+	Tab        key.Binding
+	ShiftTab   key.Binding
+	Help       key.Binding
 }
 
 // DefaultKeyMap returns the default keybindings.
@@ -97,4 +97,3 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 		{k.CtrlO, k.CtrlP, k.Help},
 	}
 }
-

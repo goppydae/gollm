@@ -524,9 +524,9 @@ func (m *GRPCServer) BeforeCompact(ctx context.Context, req *proto.BeforeCompact
 		return &proto.BeforeCompactResponse{Handled: false}, nil
 	}
 	return &proto.BeforeCompactResponse{
-		Handled:           true,
-		Summary:           result.Summary,
-		FirstKeptEntryId:  result.FirstKeptEntryID,
+		Handled:          true,
+		Summary:          result.Summary,
+		FirstKeptEntryId: result.FirstKeptEntryID,
 	}, nil
 }
 

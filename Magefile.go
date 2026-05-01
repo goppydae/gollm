@@ -245,8 +245,11 @@ func Vuln() error {
 	return execCmd("go", "run", "golang.org/x/vuln/cmd/govulncheck@latest", "./...")
 }
 
-// All runs generate, build, test, vet, lint, and vulnerability scan.
+// All runs format, generate, build, test, vet, lint, and vulnerability scan.
 func All() error {
+	if err := Format(); err != nil {
+		return err
+	}
 	if err := Generate(); err != nil {
 		return err
 	}

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
 	"github.com/goppydae/gollm/internal/config"
+	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
 	"github.com/goppydae/gollm/internal/session"
 	"github.com/goppydae/gollm/internal/themes"
 )

@@ -50,9 +50,9 @@ type Theme struct {
 	ThinkingText AdaptiveColor `json:"thinkingText" yaml:"thinkingText"`
 
 	// Message backgrounds
-	UserMsgBg    AdaptiveColor `json:"userMsgBg" yaml:"userMsgBg"`
-	AssistantBg  AdaptiveColor `json:"assistantBg" yaml:"assistantBg"`
-	CodeBg       AdaptiveColor `json:"codeBg" yaml:"codeBg"`
+	UserMsgBg     AdaptiveColor `json:"userMsgBg" yaml:"userMsgBg"`
+	AssistantBg   AdaptiveColor `json:"assistantBg" yaml:"assistantBg"`
+	CodeBg        AdaptiveColor `json:"codeBg" yaml:"codeBg"`
 	ErrorBg       AdaptiveColor `json:"errorBg" yaml:"errorBg"`
 	WarningBg     AdaptiveColor `json:"warningBg" yaml:"warningBg"`
 	InfoBg        AdaptiveColor `json:"infoBg" yaml:"infoBg"`
@@ -461,7 +461,6 @@ func hexToNibble(c byte) int {
 	}
 	return 0
 }
-
 
 func parseRGB(hex string) (int, int, int, error) {
 	if len(hex) != 7 {

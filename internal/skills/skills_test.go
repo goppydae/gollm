@@ -39,7 +39,7 @@ func TestParseSkill_NoFrontmatter(t *testing.T) {
 
 func TestDiscover(t *testing.T) {
 	tmpDir := t.TempDir()
-	
+
 	// Create a skill file
 	skillDir := filepath.Join(tmpDir, "my-skill")
 	if err := os.MkdirAll(skillDir, 0755); err != nil {

@@ -98,10 +98,10 @@ func (p *GoogleProvider) stream(ctx context.Context, req *CompletionRequest, ch 
 	// We need a custom decoder that can handle the SSE-like framing or just the JSON stream.
 	// Actually, Gemini v1beta streamGenerateContent sends a single JSON array that is streamed?
 	// No, it's usually "chunked" where each chunk is a valid JSON object.
-	
+
 	// Use a scanner to read the JSON stream. Gemini sends chunks like [ { ... }, { ... } ]
 	// But it's actually not a standard SSE. It's a JSON array where elements are sent over time.
-	
+
 	reader := bufio.NewReader(resp.Body)
 	// We'll use a simple approach: find the objects inside the array.
 	// A better way is to use a JSON decoder and look for elements.
@@ -122,8 +122,8 @@ func (p *GoogleProvider) stream(ctx context.Context, req *CompletionRequest, ch 
 				Content struct {
 					Role  string `json:"role"`
 					Parts []struct {
-						Text     string `json:"text"`
-						Call     *struct {
+						Text string `json:"text"`
+						Call *struct {
 							Name string          `json:"name"`
 							Args json.RawMessage `json:"args"`
 						} `json:"functionCall"`

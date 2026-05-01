@@ -13,4 +13,3 @@ func Capitalize(s string) string {
 	r, size := utf8.DecodeRuneInString(s)
 	return string(unicode.ToUpper(r)) + s[size:]
 }
-

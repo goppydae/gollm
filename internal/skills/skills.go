@@ -43,7 +43,7 @@ func Discover(dirs ...string) ([]*Skill, error) {
 			if err != nil {
 				return nil
 			}
-			
+
 			// If it's a file, check if it's a skill
 			if !d.IsDir() {
 				if strings.ToLower(filepath.Ext(d.Name())) == ".md" {

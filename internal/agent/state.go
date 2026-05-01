@@ -35,18 +35,18 @@ type Session = types.Session
 
 // AgentState holds the full state of an agent instance.
 type AgentState struct {
-	Session      Session         `json:"session"`
-	SystemPrompt string          `json:"systemPrompt"`
-	Messages      []Message       `json:"messages"`
-	SteerQueue    []Message       `json:"steerQueue,omitempty"`
-	FollowUpQueue []Message       `json:"followUpQueue,omitempty"`
-	Tools         []ToolInfo      `json:"tools,omitempty"`
-	Model         string          `json:"model"`
-	Provider      string          `json:"provider"`
-	Thinking      ThinkingLevel   `json:"thinkingLevel"`
-	MaxTokens     int             `json:"maxTokens,omitempty"`
-	Temperature   float64         `json:"temperature,omitempty"`
-	DryRun        bool            `json:"dryRun,omitempty"`
+	Session       Session       `json:"session"`
+	SystemPrompt  string        `json:"systemPrompt"`
+	Messages      []Message     `json:"messages"`
+	SteerQueue    []Message     `json:"steerQueue,omitempty"`
+	FollowUpQueue []Message     `json:"followUpQueue,omitempty"`
+	Tools         []ToolInfo    `json:"tools,omitempty"`
+	Model         string        `json:"model"`
+	Provider      string        `json:"provider"`
+	Thinking      ThinkingLevel `json:"thinkingLevel"`
+	MaxTokens     int           `json:"maxTokens,omitempty"`
+	Temperature   float64       `json:"temperature,omitempty"`
+	DryRun        bool          `json:"dryRun,omitempty"`
 	Compaction    struct {
 		Enabled          bool `json:"enabled"`
 		ReserveTokens    int  `json:"reserveTokens"`

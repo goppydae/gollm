@@ -15,8 +15,8 @@ import (
 	lipgloss "charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/compat"
 
-	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
 	"github.com/goppydae/gollm/internal/config"
+	pb "github.com/goppydae/gollm/internal/gen/gollm/v1"
 	"github.com/goppydae/gollm/internal/session"
 	"github.com/goppydae/gollm/internal/themes"
 )

@@ -35,7 +35,7 @@ func StreamHTTP(ctx context.Context, client *http.Client, req *http.Request, ch 
 		if err := chunkHandler(line); err != nil {
 			// We don't necessarily want to abort on all chunk errors (e.g. unmarshal skip)
 			// The handler should decide whether to return an error.
-			continue 
+			continue
 		}
 	}
 	return scanner.Err()
@@ -43,16 +43,16 @@ func StreamHTTP(ctx context.Context, client *http.Client, req *http.Request, ch 
 
 // ModelContextWindows provides a central registry of known model context windows.
 var ModelContextWindows = map[string]int{
-	"gpt-4o":       128000,
-	"gpt-4-turbo":  128000,
-	"gpt-4":        8192,
-	"gpt-3.5":      16385,
-	"claude-3-5":   200000,
-	"claude-3":     200000,
-	"qwen":         131072,
-	"llama-3.1":    131072,
-	"llama-3":      8192,
-	"mistral":      32768,
+	"gpt-4o":      128000,
+	"gpt-4-turbo": 128000,
+	"gpt-4":       8192,
+	"gpt-3.5":     16385,
+	"claude-3-5":  200000,
+	"claude-3":    200000,
+	"qwen":        131072,
+	"llama-3.1":   131072,
+	"llama-3":     8192,
+	"mistral":     32768,
 }
 
 // GetContextWindow returns the context window for a model name, or 0 if unknown.

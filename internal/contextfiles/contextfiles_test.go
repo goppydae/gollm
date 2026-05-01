@@ -9,11 +9,11 @@ import (
 
 func TestDiscover(t *testing.T) {
 	tmpDir := t.TempDir()
-	
+
 	// Create a nested structure
 	// tmpDir/AGENTS.md
 	// tmpDir/subdir/CLAUDE.md
-	
+
 	if err := os.WriteFile(filepath.Join(tmpDir, "AGENTS.md"), []byte("outer"), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +26,7 @@ func TestDiscover(t *testing.T) {
 	}
 
 	found := Discover(subdir)
-	
+
 	// Should find both, outer first
 	if len(found) < 2 {
 		t.Errorf("expected at least 2 context files, got %d", len(found))

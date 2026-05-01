@@ -172,7 +172,7 @@ func TestRedundantEvents(t *testing.T) {
 		{Payload: &pb.AgentEvent_AgentStart{AgentStart: &pb.AgentStartEvent{}}},
 		{Payload: &pb.AgentEvent_ToolCall{ToolCall: &pb.ToolCallEvent{Id: tcID, Name: "read", ArgsJson: `{"path":"main.go"}`}}},
 		{Payload: &pb.AgentEvent_MessageEnd{MessageEnd: &pb.MessageEndEvent{}}},
-		{Payload: &pb.AgentEvent_MessageEnd{MessageEnd: &pb.MessageEndEvent{}}}, // redundant
+		{Payload: &pb.AgentEvent_MessageEnd{MessageEnd: &pb.MessageEndEvent{}}},                                                 // redundant
 		{Payload: &pb.AgentEvent_ToolCall{ToolCall: &pb.ToolCallEvent{Id: tcID, Name: "read", ArgsJson: `{"path":"main.go"}`}}}, // redundant
 		{Payload: &pb.AgentEvent_ToolOutput{ToolOutput: &pb.ToolOutputEvent{ToolCallId: tcID, ToolName: "read", Content: "package main\n"}}},
 	}
@@ -250,4 +250,3 @@ func TestRenderErrorCapitalization(t *testing.T) {
 		t.Error("Expected error message to be capitalized")
 	}
 }
-

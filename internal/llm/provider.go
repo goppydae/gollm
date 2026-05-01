@@ -26,14 +26,14 @@ type ModelLister interface {
 
 // CompletionRequest is a request to the LLM.
 type CompletionRequest struct {
-	Model       string                  `json:"model"`
-	Messages    []types.Message         `json:"messages"`
-	Tools       []types.ToolInfo        `json:"tools,omitempty"`
-	System      string                  `json:"system,omitempty"`
-	Thinking    types.ThinkingLevel     `json:"thinking,omitempty"`
-	MaxTokens   int                     `json:"maxTokens,omitempty"`
-	Temperature float64                 `json:"temperature,omitempty"`
-	StreamOpts  StreamOptions           `json:"streamOpts,omitempty"`
+	Model       string              `json:"model"`
+	Messages    []types.Message     `json:"messages"`
+	Tools       []types.ToolInfo    `json:"tools,omitempty"`
+	System      string              `json:"system,omitempty"`
+	Thinking    types.ThinkingLevel `json:"thinking,omitempty"`
+	MaxTokens   int                 `json:"maxTokens,omitempty"`
+	Temperature float64             `json:"temperature,omitempty"`
+	StreamOpts  StreamOptions       `json:"streamOpts,omitempty"`
 }
 
 // StreamOptions controls streaming behavior.
